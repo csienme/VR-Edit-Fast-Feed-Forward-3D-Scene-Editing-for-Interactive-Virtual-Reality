@@ -707,6 +707,18 @@ def infer_vggt_and_reconstruct(
     camera_poses = to_homogeneous(extrinsic_np)
     all_cam_to_world_mat = list(camera_poses)
 
+    # return (
+    #     extrinsic_np,
+    #     intrinsic_np,
+    #     all_points,
+    #     all_colors,
+    #     all_cam_to_world_mat,
+    #     inference_time_ms,
+    # )
+
+    # PAUL MOD 
+    # add depth map to return values for later evaluation
+
     return (
         extrinsic_np,
         intrinsic_np,
@@ -714,6 +726,7 @@ def infer_vggt_and_reconstruct(
         all_colors,
         all_cam_to_world_mat,
         inference_time_ms,
+        depth_np,
     )
 
 

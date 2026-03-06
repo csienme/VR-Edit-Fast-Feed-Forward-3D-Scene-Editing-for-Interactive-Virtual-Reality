@@ -7,6 +7,10 @@ import sys
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
 
+
+# PAUL MOD
+import generative_inpaint_module as generative_inpaint_module
+
 # Ensure project root is in sys.path for absolute imports like `vggt.*`
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 if ROOT_DIR not in sys.path:
@@ -98,6 +102,56 @@ def visualize_predicted_poses(
         traceback.print_exc()
 
 
+# ==================================================
+# ================ PAUL CUSTOM START ==============
+# ==================================================
+def find_best_center_reference_view(all_cam_to_world_mat):
+    """
+    計算所有相機在 3D 空間中的幾何質心，並回傳最接近質心的相機 Index 作為最佳 Reference View。
+    """
+    print("\n" + "="*50)
+    print("🔭 啟動 [自動空間中心視角選擇器]")
+    
+    cam_centers = []
+    
+    # 1. 萃取所有相機的 3D 座標 (Translation vector)
+    for w2c in all_cam_to_world_mat:
+        # 將 World-to-Camera 矩陣反轉為 Camera-to-World
+        c2w = np.linalg.inv(w2c)
+        # C2W 矩陣的右上角 3x1 向量，就是相機在世界座標系中的 (X, Y, Z) 位置
+        camera_position = c2w[:3, 3] 
+        cam_centers.append(camera_position)
+        
+    cam_centers = np.array(cam_centers)
+    
+    # 2. 計算所有相機軌跡的「幾何質心 (Centroid)」
+    centroid = np.mean(cam_centers, axis=0)
+    
+    # 3. 計算每一台相機距離質心的歐式距離 (L2 Norm)
+    distances = np.linalg.norm(cam_centers - centroid, axis=1)
+    
+    # 4. 找出距離質心最近的那台相機
+    best_ref_idx = np.argmin(distances)
+    min_distance = distances[best_ref_idx]
+    
+    print(f"📍 空間質心座標: {centroid}")
+    print(f"🏆 最佳中心相機 Index 判定為: V_{best_ref_idx} (距離質心 {min_distance:.4f} 米)")
+    print("="*50 + "\n")
+    
+    return int(best_ref_idx)
+
+
+# ==================================================
+# ================ PAUL CUSTOM END ==============
+# ==================================================
+
+
+
+
+
+
+
+
 def main():
     """
     Evaluation script for a Custom Dataset.
@@ -134,7 +188,7 @@ def main():
     parser.add_argument(
         "--ckpt_path",
         type=str,
-        default="/home/sy/code/vggt_0625/ckpt/model_tracker_fixed_e20.pt",
+        default="./model_tracker_fixed_e20.pt",
         help="Model checkpoint file path",
     )
 
@@ -177,6 +231,45 @@ def main():
         action="store_true",
         help="Visualize attention maps during inference",
     )
+
+
+    #PAUL_MOD START
+    # === [新增] 驗證模組參數 ===
+    parser.add_argument(
+        "--enable_mask_prop",
+        action="store_true",
+        help="啟動 Mask 跨視角傳播驗證",
+    )
+    parser.add_argument(
+        "--mask_path",
+        type=Path,
+        default=None,
+        help="存放 Ground Truth Mask 的資料夾路徑 (例如 mini_test/label)",
+    )
+
+
+
+    # === [新增] Oracle RGB 紋理映射測試參數 ===
+    parser.add_argument(
+        "--enable_rgb_prop", 
+        action="store_true", 
+        help="啟動 Oracle RGB 紋理反向映射測試 (需要 61 張圖：1 張乾淨 + 60 張有物體)"
+    )
+    parser.add_argument(
+        "--clean_ref_img_path", 
+        type=Path, 
+        default=None, 
+        help="乾淨無物體 (GT) 的 V_0 影像路徑，做為採樣 RGB 的神諭來源"
+    )
+
+    parser.add_argument(
+        "--enable_gen_3d_prop", 
+        action="store_true", 
+        help="啟動 3DGIC 範式: 2D 生成式修補 + 3D 昇維映射"
+    )
+    # ==========================
+    #PAUL_MOD END
+
 
     args = parser.parse_args()
     torch.manual_seed(33)
@@ -309,10 +402,104 @@ def main():
             all_point_colors,
             all_cam_to_world_mat,
             inference_time_ms,
+            dense_depth_maps, # PAUL MOD add new return value for depth maps
         ) = infer_vggt_and_reconstruct(
             model, vgg_input, dtype, args.depth_conf_thresh, image_paths
         )
         print(f"⏱️  Inference time: {inference_time_ms:.2f}ms")
+
+
+
+
+
+
+        # ==================================================
+        # [新增] 執行 Generative 3D Inpainting (3DGIC Pipeline)
+        # ==================================================
+
+
+
+
+
+        if args.enable_gen_3d_prop:
+            if args.mask_path is None or not args.mask_path.exists():
+                print("❌ 錯誤: 啟動了 --enable_gen_3d_prop 但未提供 --mask_path")
+            else:
+                print(f"\n🚀 啟動 Generative 3D Inpainting 映射")
+                
+
+
+
+                # 引用我們剛剛建立的新模組
+                from eval.generative_inpaint_module import generative_multi_ref_propagation
+
+            # =================================================================
+                # 🚀 終極測試：動態死角貪婪覆蓋 (Greedy Disocclusion Coverage)
+                # =================================================================
+                # 定義全局 LaMa 快取字典，防止 GPU 運算爆炸
+                global_ref_cache = {}
+                
+                # 1. 創世：利用上一篇寫好的函數，選出空間正中心的相機作為最初的 Ref_1
+                best_center_idx = find_best_center_reference_view(all_cam_to_world_mat)
+                active_ref_indices = [best_center_idx]
+                
+                # 你想測試/修補的所有 Target 視角
+                target_indices_to_test = [5, 10, 15, 20, 30, 40, 50, 55] 
+                
+                # 設定死角容忍閾值 (例如紅點小於 200 個像素，我們就視為肉眼不可見，宣告勝利)
+                TOLERANCE_AREA = 200  
+                round_count = 1
+                
+                while True:
+                    print(f"\n" + "="*60)
+                    print(f"🌍 [貪婪迴圈 第 {round_count} 回合] 目前的 Reference 陣容: {active_ref_indices}")
+                    print("="*60)
+                    
+                    max_red_area = 0
+                    worst_target_idx = -1
+                    
+                    # 讓所有的 Target 進行修補，並統計災情
+                    for tgt_idx in target_indices_to_test:
+                        if tgt_idx in active_ref_indices:
+                            continue # 自己是 Ref 就不用再當 Target
+                            
+                        red_area = generative_multi_ref_propagation(
+                            ref_indices=active_ref_indices, 
+                            target_idx=tgt_idx, 
+                            image_paths=image_paths, 
+                            mask_dir=args.mask_path, 
+                            dense_depth_maps=dense_depth_maps, 
+                            all_cam_to_world_mat=all_cam_to_world_mat, 
+                            intrinsics=intrinsic_np, 
+                            output_dir=output_scene_dir,
+                            ref_cache=global_ref_cache  # 💥 傳入快取！
+                        )
+                        
+                        # 揪出本回合紅斑最嚴重的苦主
+                        if red_area > max_red_area:
+                            max_red_area = red_area
+                            worst_target_idx = tgt_idx
+                            
+                    # 結算本回合戰況
+                    print(f"⚖️ 本回合最慘 Target: V_{worst_target_idx} (最大紅斑面積: {max_red_area})")
+                    
+                    if max_red_area <= TOLERANCE_AREA:
+                        print(f"🏆 貪婪覆蓋大獲全勝！所有視角的死角已被全數消滅 (耗費 {len(active_ref_indices)} 個 Ref Views)。")
+                        break
+                        
+                    # 🚨 核心邏輯：如果紅斑還是太大，代表目前的 Ref 陣容完全看不到那個死角
+                    # 解法：直接將最慘的 Target 拔擢為新的 Ref，讓 LaMa 在那裡憑空創造世界！
+                    print(f"👑 系統決定拔擢最慘的 V_{worst_target_idx} 成為新的 Reference View！")
+                    active_ref_indices.append(worst_target_idx)
+                    round_count += 1
+
+
+        #PAUL_MOD END
+
+        # ================================
+        # ================================
+
+
 
         # Check results
         if not all_cam_to_world_mat or not all_world_points:
