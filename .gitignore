@@ -159,6 +159,11 @@ skyseg.onnx
 .pixi
 *.egg-info
 
+
+# ========================PAUL MOD+++++++++++++++++++++++++
 spinnerf-dataset/
 mini_test/
 *.pt
+eval_results_custom/
+purify_scene/
+purify_scene_ablation/

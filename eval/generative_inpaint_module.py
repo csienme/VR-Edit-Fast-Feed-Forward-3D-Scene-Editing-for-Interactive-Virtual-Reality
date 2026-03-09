@@ -4,9 +4,6 @@ import torch
 import os
 from PIL import Image
 
-
-
-
 try:
     from simple_lama_inpainting import SimpleLama
     print("⏳ 正在載入 LaMa 模型至 GPU...")
@@ -19,13 +16,7 @@ except ImportError:
 # ==============================================================================
 # [模組 1] 2D 深度圖生成式修補 (LaMa RGB-D 雙軌管線)
 # ==============================================================================
-# ==============================================================================
-# [模組 1] 2D 深度圖生成式修補 (LaMa RGB-D 雙軌管線)
-# ==============================================================================
 def run_generative_depth_inpaint(dense_depth, mask_2d):
-    """
-    將 VGGT 絕對深度轉換為視覺圖像，讓 LaMa 進行高頻結構修補，再反推回物理深度。
-    """
     valid_mask = ~np.isnan(dense_depth) & ~np.isinf(dense_depth) & (dense_depth > 0)
     kernel = np.ones((25, 25), np.uint8)
     dilated_mask = cv2.dilate(mask_2d, kernel, iterations=1)
@@ -43,7 +34,6 @@ def run_generative_depth_inpaint(dense_depth, mask_2d):
     depth_norm = np.zeros_like(dense_depth, dtype=np.float32)
     depth_norm[safe_bg_mask] = dense_depth[safe_bg_mask]
     depth_img_8u = np.clip((depth_norm - depth_min) / (depth_max - depth_min + 1e-6) * 255.0, 0, 255).astype(np.uint8)
-
     depth_img_3c = cv2.cvtColor(depth_img_8u, cv2.COLOR_GRAY2RGB)
 
     if lama_model is not None:
@@ -52,7 +42,6 @@ def run_generative_depth_inpaint(dense_depth, mask_2d):
         result_pil = lama_model(img_pil, mask_pil)
         inpainted_depth_8u = cv2.cvtColor(np.array(result_pil), cv2.COLOR_RGB2GRAY)
         
-        # 💥【關鍵修復】：LaMa 可能會填充圖片為 8 的倍數，強制改回原本長寬！
         H, W = mask_2d.shape
         if inpainted_depth_8u.shape[:2] != (H, W):
             inpainted_depth_8u = cv2.resize(inpainted_depth_8u, (W, H), interpolation=cv2.INTER_NEAREST)
@@ -68,15 +57,9 @@ def run_generative_depth_inpaint(dense_depth, mask_2d):
     return final_depth, depth_img_8u, inpainted_depth_8u
 
 # ==============================================================================
-# [模組 2] 2D RGB 生成式修補 (LaMa / Stable Diffusion Wrapper)
-# ==============================================================================
-# ==============================================================================
-# [模組 2] 2D RGB 生成式修補 (LaMa / Stable Diffusion Wrapper)
+# [模組 2] 2D RGB 紋理生成式修補
 # ==============================================================================
 def run_generative_rgb_inpaint(img_path, mask_2d):
-    """
-    呼叫 LaMa 進行修補，並預先膨脹 Mask 以消除陰影殘留與邊界洩漏。
-    """
     kernel = np.ones((15, 15), np.uint8)
     mask_dilated = cv2.dilate(mask_2d, kernel, iterations=1)
 
@@ -86,7 +69,6 @@ def run_generative_rgb_inpaint(img_path, mask_2d):
         result_pil = lama_model(img_pil, mask_pil)
         inpainted_rgb = cv2.cvtColor(np.array(result_pil), cv2.COLOR_RGB2BGR)
         
-        # 💥【關鍵修復】：確保 RGB 修補出來的圖片尺寸與原圖完美吻合
         H, W = mask_2d.shape
         if inpainted_rgb.shape[:2] != (H, W):
             inpainted_rgb = cv2.resize(inpainted_rgb, (W, H), interpolation=cv2.INTER_LINEAR)
@@ -95,20 +77,9 @@ def run_generative_rgb_inpaint(img_path, mask_2d):
         inpainted_rgb = cv2.inpaint(img, mask_dilated, inpaintRadius=10, flags=cv2.INPAINT_TELEA)
         
     return inpainted_rgb
+
 # ==============================================================================
-# [模組 3] 核心：Image-to-PointCloud 昇維投影
-# ==============================================================================
-# ==============================================================================
-# [模組 3] 核心：Image-to-PointCloud 昇維投影 (LaMa RGB-D 雙軌版)
-# ==============================================================================
-# ==============================================================================
-# [模組 3] 核心：Image-to-PointCloud 逆向映射 (Target-Driven Backward Warping)
-# ==============================================================================
-# ==============================================================================
-# [模組 3] 核心：多參考視角逆向映射 (Multi-Reference Backward Warping)
-# ==============================================================================
-# ==============================================================================
-# [模組 3] 核心：多參考視角前向融合 (Multi-Ref Forward Splatting + Local Registration)
+# [模組 3] 核心：多參考視角前向融合與動態評估 (Multi-Ref Splatting + Eval)
 # ==============================================================================
 def generative_multi_ref_propagation(
     ref_indices, target_idx, image_paths, mask_dir, 
@@ -117,9 +88,6 @@ def generative_multi_ref_propagation(
 ):
     print(f"\n[Gen-3D Prop] 啟動多視角前向融合: Target V_{target_idx} <- Refs {ref_indices}")
 
-    # ==========================================
-    # 0. 讀取 Target 基礎資料
-    # ==========================================
     target_img_path = image_paths[target_idx]
     target_img = cv2.imread(target_img_path)
     H, W = target_img.shape[:2]
@@ -129,6 +97,8 @@ def generative_multi_ref_propagation(
     mask_tgt = cv2.resize(mask_tgt, (W, H), interpolation=cv2.INTER_NEAREST)
 
     w2c_tgt = all_cam_to_world_mat[target_idx]
+    c2w_tgt = np.linalg.inv(w2c_tgt) 
+    
     depth_vt_lowres = dense_depth_maps[target_idx]
     scale_x, scale_y = W / depth_vt_lowres.shape[1], H / depth_vt_lowres.shape[0]
     K_tgt = intrinsics[target_idx].copy()
@@ -137,24 +107,38 @@ def generative_multi_ref_propagation(
 
     final_canvas = target_img.copy()
     remaining_hole_mask = (mask_tgt > 0).copy()
-    
     morph_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
     
-    # 建立 Target 參考環 (供後續方案一對齊使用)
     kernel_expand_tgt = np.ones((25, 25), np.uint8) 
     expanded_mask_tgt = cv2.dilate(mask_tgt, kernel_expand_tgt, iterations=1)
 
+    # 紀錄來自各個 Ref 補丁的邊界撕裂誤差
+    boundary_mses = []
+
     # ==========================================
-    # 1. 貪婪圖層覆蓋：依序從多個 Ref 進行前向投影
+    # 🚀 1. 視角相依動態排序 (View-Dependent Sorting)
     # ==========================================
-    for ref_idx in ref_indices:
+    target_pos = c2w_tgt[:3, 3]
+    ref_distances = []
+    
+    for r_idx in ref_indices:
+        r_c2w = np.linalg.inv(all_cam_to_world_mat[r_idx])
+        dist = np.linalg.norm(r_c2w[:3, 3] - target_pos)
+        ref_distances.append((r_idx, dist))
+        
+    sorted_ref_indices = [x[0] for x in sorted(ref_distances, key=lambda x: x[1])]
+    print(f"  -> 重新排序 Ref 優先級 (由近到遠): {sorted_ref_indices}")
+
+    # ==========================================
+    # 2. 貪婪圖層覆蓋：依序從多個 Ref 進行前向投影
+    # ==========================================
+    for ref_idx in sorted_ref_indices:
         if not np.any(remaining_hole_mask):
-            print(f"🎉 Target V_{target_idx} 的死角已被先前的 Ref 完美填滿！")
+            print(f"🎉 Target V_{target_idx} 的死角已被完美填滿！")
             break
 
         print(f"  -> 正在從 Ref V_{ref_idx} 擷取並映射 3D 補丁...")
 
-        # (A) 從快取取得 Ref 的 RGB-D
         ref_img_path = image_paths[ref_idx]
         ref_mask_path = os.path.join(mask_dir, os.path.basename(ref_img_path))
         mask_ref = cv2.resize(cv2.imread(ref_mask_path, cv2.IMREAD_GRAYSCALE), (W, H), interpolation=cv2.INTER_NEAREST)
@@ -167,7 +151,6 @@ def generative_multi_ref_propagation(
             
         inpainted_rgb_ref, inpainted_depth_ref = ref_cache[ref_idx]
 
-        # (B) 擷取 Ref 的 3D 實體補丁
         kernel_expand_ref = np.ones((25, 25), np.uint8) 
         expanded_mask_ref = cv2.dilate(mask_ref, kernel_expand_ref, iterations=1)
         v_ref, u_ref = np.where(expanded_mask_ref > 0)
@@ -177,7 +160,6 @@ def generative_multi_ref_propagation(
         u_ref, v_ref, Z_ref = u_ref[valid_z], v_ref[valid_z], Z_ref[valid_z]
         colors_ref = inpainted_rgb_ref[v_ref, u_ref]
 
-        # (C) 逆投影至 World Space
         c2w_ref = np.linalg.inv(all_cam_to_world_mat[ref_idx])
         K_ref = intrinsics[ref_idx].copy()
         K_ref[0, :] *= scale_x
@@ -189,7 +171,6 @@ def generative_multi_ref_propagation(
         pts_cam_homo = np.hstack((pts_cam, np.ones((pts_cam.shape[0], 1))))
         pts_world = (c2w_ref @ pts_cam_homo.T).T[:, :3]
 
-        # (D) 前向濺射至 Target 視角
         pts_world_homo = np.hstack((pts_world, np.ones((pts_world.shape[0], 1))))
         pts_tgt_cam = (w2c_tgt @ pts_world_homo.T).T[:, :3]
         
@@ -205,7 +186,6 @@ def generative_multi_ref_propagation(
         valid_uv = (u_tgt >= 0) & (u_tgt < W) & (v_tgt >= 0) & (v_tgt < H)
         u_tgt, v_tgt, final_colors = u_tgt[valid_uv], v_tgt[valid_uv], final_colors[valid_uv]
 
-        # (E) 渲染暫存畫布與形態學平滑
         warp_canvas = np.zeros_like(target_img)
         valid_warp_mask = np.zeros((H, W), dtype=np.uint8)
         
@@ -217,7 +197,7 @@ def generative_multi_ref_propagation(
         valid_warp_mask_bool = valid_warp_mask_smoothed > 0
 
         # ==========================================
-        # 2. 【方案一】 局部幾何配準 (Local Registration)
+        # 3. 局部幾何配準 (Local Boundary Registration)
         # ==========================================
         ring_mask = (expanded_mask_tgt > 0) & (mask_tgt == 0) & valid_warp_mask_bool
         best_dx, best_dy = 0, 0
@@ -241,32 +221,49 @@ def generative_multi_ref_propagation(
                     if error < min_error:
                         min_error = error
                         best_dx, best_dy = dx, dy
-            print(f"    🎯 [方案一觸發] 對齊偏移量 (dx={best_dx}, dy={best_dy})")
+            print(f"    🎯 [邊界對齊觸發] 2D 修正平移量 (dx={best_dx}, dy={best_dy})")
 
-        # (F) 施加平移並填補「剩餘的洞」
+        # ==========================================
+        # 💥 [重大修正]：正確計算「投影補丁」與「真實背景」的光度撕裂誤差
+        # ==========================================
         M_best = np.float32([[1, 0, best_dx], [0, 1, best_dy]])
         shifted_canvas = cv2.warpAffine(warp_canvas, M_best, (W, H))
         shifted_mask = cv2.warpAffine(valid_warp_mask_smoothed, M_best, (W, H))
         
+        # 抓出這塊補丁溢出破洞、覆蓋在真實背景上的「交界環」
+        current_eval_ring = (expanded_mask_tgt > 0) & (mask_tgt == 0) & (shifted_mask > 0)
+        
+        if np.any(current_eval_ring):
+            # 真正的對決：假補丁的像素 vs 原圖的像素
+            diff = shifted_canvas[current_eval_ring].astype(np.float32) - target_img[current_eval_ring].astype(np.float32)
+            patch_mse = float(np.mean(np.square(diff)))
+            boundary_mses.append(patch_mse)
+            print(f"    📊 本次補丁邊界 MSE 誤差: {patch_mse:.2f}")
+
+        # (F) 嚴格填補「尚未填補的洞」
         paste_mask = (shifted_mask > 0) & remaining_hole_mask
         paste_y, paste_x = np.where(paste_mask)
         
         final_canvas[paste_y, paste_x] = shifted_canvas[paste_y, paste_x]
-        
-        # 標記已填補區域，供下一輪 Ref 參考
         remaining_hole_mask[paste_y, paste_x] = False
         
     # ==========================================
-    # 3. 絕對死角結算
+    # 🚀 4. 綜合災情結算
     # ==========================================
+    # 1. 結算死角面積
     red_mask_smoothed = cv2.morphologyEx((remaining_hole_mask * 255).astype(np.uint8), cv2.MORPH_OPEN, morph_kernel)
     red_y, red_x = np.where(red_mask_smoothed > 0)
     final_canvas[red_y, red_x] = [0, 0, 255]
+    red_area = len(red_y)
+    
+    # 2. 結算邊界紋理撕裂誤差 (取最大值，只要有一個 Ref 補丁嚴重拉扯，就視為該視角崩潰)
+    final_boundary_mse = max(boundary_mses) if boundary_mses else 0.0
     
     os.makedirs(output_dir / "gen_3d_prop", exist_ok=True)
     cv2.imwrite(str(output_dir / "gen_3d_prop" / f"inpainted_{target_idx}.png"), final_canvas)
     
-    red_area = len(red_y)
-    print(f"✅ V_{target_idx} 處理完成！剩餘紅色死角面積: {red_area} 像素\n")
+    print(f"✅ V_{target_idx} 處理完成！")
+    print(f"   - 剩餘紅色死角面積: {red_area} 像素")
+    print(f"   - 最高邊界紋理撕裂誤差 (MSE): {final_boundary_mse:.2f}\n")
     
-    return red_area
+    return red_area, final_boundary_mse

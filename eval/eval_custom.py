@@ -6,7 +6,7 @@ import os
 import sys
 import matplotlib.pyplot as plt
 from scipy.spatial.transform import Rotation
-
+import cv2
 
 # PAUL MOD
 import generative_inpaint_module as generative_inpaint_module
@@ -234,6 +234,7 @@ def main():
 
 
     #PAUL_MOD START
+    #=====================================================================
     # === [新增] 驗證模組參數 ===
     parser.add_argument(
         "--enable_mask_prop",
@@ -247,27 +248,19 @@ def main():
         help="存放 Ground Truth Mask 的資料夾路徑 (例如 mini_test/label)",
     )
 
-
-
-    # === [新增] Oracle RGB 紋理映射測試參數 ===
-    parser.add_argument(
-        "--enable_rgb_prop", 
-        action="store_true", 
-        help="啟動 Oracle RGB 紋理反向映射測試 (需要 61 張圖：1 張乾淨 + 60 張有物體)"
-    )
-    parser.add_argument(
-        "--clean_ref_img_path", 
-        type=Path, 
-        default=None, 
-        help="乾淨無物體 (GT) 的 V_0 影像路徑，做為採樣 RGB 的神諭來源"
-    )
-
     parser.add_argument(
         "--enable_gen_3d_prop", 
         action="store_true", 
         help="啟動 3DGIC 範式: 2D 生成式修補 + 3D 昇維映射"
     )
-    # ==========================
+
+    parser.add_argument(
+        "--generate", 
+        type=str, 
+        help="Specify 'all frame' to render all frames in the data_path."
+    )
+    
+    #=====================================================================
     #PAUL_MOD END
 
 
@@ -433,7 +426,7 @@ def main():
                 # 引用我們剛剛建立的新模組
                 from eval.generative_inpaint_module import generative_multi_ref_propagation
 
-            # =================================================================
+                # =================================================================
                 # 🚀 終極測試：動態死角貪婪覆蓋 (Greedy Disocclusion Coverage)
                 # =================================================================
                 # 定義全局 LaMa 快取字典，防止 GPU 運算爆炸
@@ -443,27 +436,44 @@ def main():
                 best_center_idx = find_best_center_reference_view(all_cam_to_world_mat)
                 active_ref_indices = [best_center_idx]
                 
-                # 你想測試/修補的所有 Target 視角
-                target_indices_to_test = [5, 10, 15, 20, 30, 40, 50, 55] 
+
+                ALL_FRAMES = sum(1 for file in os.listdir(args.data_path) if file.endswith('.png'))
+
+
+                if args.generate == "all frame":
+                    # 如果指定了 --generate all frame，渲染所有 frame
+                    print("generate all frame...")
+                    target_indices_to_test = list(range(ALL_FRAMES))
+                else:
+                    # 你想測試/修補的取樣 Target 視角
+                    target_indices_to_test = [5, 10, 15, 20, 30, 40, 50, 55] 
                 
-                # 設定死角容忍閾值 (例如紅點小於 200 個像素，我們就視為肉眼不可見，宣告勝利)
-                TOLERANCE_AREA = 200  
+                
+ # 參數設定
+                TOLERANCE_AREA = 100       # 容忍的最大紅斑面積 (像素)
+                MSE_DEADZONE = 1200        # MSE 死區：小於 1200 的誤差視為正常，不予懲罰
+                MAX_REF_VIEWS = 4          # 💥 強制硬上限：最多只允許 4 個 Reference View
+                
                 round_count = 1
                 
                 while True:
                     print(f"\n" + "="*60)
-                    print(f"🌍 [貪婪迴圈 第 {round_count} 回合] 目前的 Reference 陣容: {active_ref_indices}")
+                    print(f"🌍 [貪婪迴圈 第 {round_count} 回合] 目前的神壇陣容: {active_ref_indices}")
                     print("="*60)
                     
-                    max_red_area = 0
+                    # 防呆機制：如果 Ref 數量已經達到我們設定的極限，強制停止！
+                    if len(active_ref_indices) >= MAX_REF_VIEWS:
+                        print(f"🛑 達到最大 Reference 視角數量上限 ({MAX_REF_VIEWS})，強制終止貪婪迴圈以保護 3D 一致性！")
+                        break
+                        
+                    max_bad_score = 0
                     worst_target_idx = -1
                     
-                    # 讓所有的 Target 進行修補，並統計災情
                     for tgt_idx in target_indices_to_test:
                         if tgt_idx in active_ref_indices:
-                            continue # 自己是 Ref 就不用再當 Target
+                            continue 
                             
-                        red_area = generative_multi_ref_propagation(
+                        red_area, boundary_mse = generative_multi_ref_propagation(
                             ref_indices=active_ref_indices, 
                             target_idx=tgt_idx, 
                             image_paths=image_paths, 
@@ -472,26 +482,55 @@ def main():
                             all_cam_to_world_mat=all_cam_to_world_mat, 
                             intrinsics=intrinsic_np, 
                             output_dir=output_scene_dir,
-                            ref_cache=global_ref_cache  # 💥 傳入快取！
+                            ref_cache=global_ref_cache  
                         )
                         
-                        # 揪出本回合紅斑最嚴重的苦主
-                        if red_area > max_red_area:
-                            max_red_area = red_area
+                        # 💥 核心修正：計算綜合災情分數 (導入 Deadzone 機制)
+                        bad_score = red_area
+                        
+                        # 只有當 MSE 飆破死區 (例如嚴重拉扯)，才將超出死區的部分加入懲罰分數
+                        if boundary_mse > MSE_DEADZONE:
+                            penalty = (boundary_mse - MSE_DEADZONE) * 0.5
+                            bad_score += penalty
+                            print(f"    ⚠️ 偵測到嚴重紋理撕裂 (MSE: {boundary_mse:.1f})，附加懲罰分數: {penalty:.1f}")
+                        
+                        if bad_score > max_bad_score:
+                            max_bad_score = bad_score
                             worst_target_idx = tgt_idx
                             
-                    # 結算本回合戰況
-                    print(f"⚖️ 本回合最慘 Target: V_{worst_target_idx} (最大紅斑面積: {max_red_area})")
+                    print(f"⚖️ 本回合最慘 Target: V_{worst_target_idx} (綜合災情分數: {max_bad_score:.2f})")
                     
-                    if max_red_area <= TOLERANCE_AREA:
-                        print(f"🏆 貪婪覆蓋大獲全勝！所有視角的死角已被全數消滅 (耗費 {len(active_ref_indices)} 個 Ref Views)。")
+                    # 判斷是否大獲全勝 (紅斑夠小，且沒有嚴重的紋理撕裂)
+                    if max_bad_score <= TOLERANCE_AREA:
+                        print(f"🏆 貪婪覆蓋大獲全勝！所有死角與嚴重紋理撕裂已被消滅 (耗費 {len(active_ref_indices)} 個 Refs)。")
                         break
                         
-                    # 🚨 核心邏輯：如果紅斑還是太大，代表目前的 Ref 陣容完全看不到那個死角
-                    # 解法：直接將最慘的 Target 拔擢為新的 Ref，讓 LaMa 在那裡憑空創造世界！
                     print(f"👑 系統決定拔擢最慘的 V_{worst_target_idx} 成為新的 Reference View！")
                     active_ref_indices.append(worst_target_idx)
                     round_count += 1
+
+                # =================================================================
+                # 💥 終極修復：將完美的 Reference Views 寫出覆蓋！
+                # =================================================================
+                print("\n" + "="*60)
+                print("💾 [最終結算] 正在將神壇上的完美 Reference Views 寫入硬碟...")
+                
+                for ref_idx in active_ref_indices:
+                    # 這些 Ref 肯定已經在快取中（因為剛剛已經用來拯救其他視角了）
+                    if ref_idx in global_ref_cache:
+                        # 從快取中拿出 LaMa 剛剛畫好的「完美 2D 修補 RGB」
+                        perfect_rgb, _ = global_ref_cache[ref_idx]
+                        
+                        # 定義儲存路徑
+                        save_path = output_scene_dir / "gen_3d_prop" / f"inpainted_{ref_idx}.png"
+                        
+                        # 強制覆寫！(如果是 27 號就會無中生有補齊，56和0號則是把瑕疵圖蓋掉)
+                        cv2.imwrite(str(save_path), perfect_rgb)
+                        print(f"   ✅ 已完美覆寫 Reference V_{ref_idx}")
+                    else:
+                        print(f"   ⚠️ 警告：V_{ref_idx} 不在快取中 (預期外行為)")
+                        
+                print("="*60 + "\n")
 
 
         #PAUL_MOD END
