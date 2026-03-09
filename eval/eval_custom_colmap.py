@@ -237,7 +237,7 @@ def parse_args():
     parser.add_argument(
         "--ckpt_path",
         type=str,
-        default="/home/sy/code/vggt_0625/ckpt/model_tracker_fixed_e20.pt",
+        default="model_tracker_fixed_e20.pt",
         help="Model checkpoint file path",
     )
     parser.add_argument("--merging", type=int, default=0, help="Merging parameter")

@@ -163,7 +163,11 @@ skyseg.onnx
 # ========================PAUL MOD+++++++++++++++++++++++++
 spinnerf-dataset/
 mini_test/
-*.pt
+mini_test_ablation_independent/
 eval_results_custom/
 purify_scene/
 purify_scene_ablation/
+
+
+*.pt
+*.png
