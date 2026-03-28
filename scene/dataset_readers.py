@@ -63,51 +63,65 @@ def getNerfppNorm(cam_info):
     return {"translate": translate, "radius": radius}
 
 # ==============================================================================
-# 核心：COLMAP 讀取函數
+# 核心：COLMAP 讀取函數 (百毒不侵版)
 # ==============================================================================
 def readColmapSceneInfo(path, images_folder="images", eval_mode=False):
     """
-    利用 pycolmap 直接讀取 VGGT 輸出的 sparse 資料夾
+    穩健且高度容錯的 COLMAP 讀取器
     """
-    cameras_ext = "bin"
-    sparse_path = os.path.join(path, "sparse")
-    if not os.path.exists(sparse_path):
-        # 容錯處理：如果使用者直接傳入 sparse 資料夾
-        if os.path.basename(path) == "sparse":
-            sparse_path = path
-            path = os.path.dirname(path)
-        else:
-            raise FileNotFoundError(f"找不到 COLMAP sparse 資料夾: {sparse_path}")
+    # 🛡️ 升級 1：智慧路徑穿透 (自動尋找 0/ 或根目錄)
+    sparse_root = os.path.join(path, "sparse")
+    if os.path.exists(os.path.join(sparse_root, "0")):
+        sparse_path = os.path.join(sparse_root, "0")
+    elif os.path.exists(sparse_root):
+        sparse_path = sparse_root
+    else:
+        sparse_path = path
 
-    print(f"Reading COLMAP reconstruction from {sparse_path}")
+    print(f"🌍 正在讀取 COLMAP 幾何: {sparse_path}")
     reconstruction = pycolmap.Reconstruction(sparse_path)
     
     cam_infos = []
     
-    # 1. 讀取所有相機與影像資訊
+    # 讀取所有相機與影像資訊
     for image_id, image in reconstruction.images.items():
         camera = reconstruction.cameras[image.camera_id]
         
-# 支援 VGGT 輸出的 PINHOLE 與 SIMPLE_PINHOLE (基於 params 長度判斷)
-        if len(camera.params) == 4:
-            fx, fy, cx, cy = camera.params
-        elif len(camera.params) == 3:
-            f, cx, cy = camera.params
-            fx = fy = f
+        # 🛡️ 升級 2：安全的相機參數解析 (不再依賴字串比對，直接看長度)
+        if len(camera.params) >= 4:
+            fx, fy, cx, cy = camera.params[:4]
         else:
-            raise ValueError(f"不預期的相機參數長度: {len(camera.params)}，無法解析為 Pinhole 模型。")
+            f, cx, cy = camera.params[:3]
+            fx = fy = f
 
         FovY = focal2fov(fy, camera.height)
         FovX = focal2fov(fx, camera.width)
 
-        # 讀取 R, T (COLMAP 預設為 World-to-Camera)
-        R = image.cam_from_world.rotation.matrix().transpose()
-        T = image.cam_from_world.translation
+        # 🛡️ 相容新舊版 pycolmap 的 R, T 讀取
+        if hasattr(image, 'cam_from_world'):
+            R = image.cam_from_world.rotation.matrix().transpose()
+            T = image.cam_from_world.translation
+        else:
+            R = image.qvec2rotmat()
+            T = image.tvec
 
-        image_path = os.path.join(path, images_folder, image.name)
-        image_name = os.path.basename(image_path).split(".")[0]
+        # 🛡️ 升級 3：強大的副檔名容錯機制 (Extension Tolerance)
+        base_image_name = os.path.basename(image.name)
+        image_path = os.path.join(path, images_folder, base_image_name)
         
-        # 延遲讀取圖片 (節省記憶體，交給 Dataset Loader 處理)
+        if not os.path.exists(image_path):
+            name_no_ext = os.path.splitext(base_image_name)[0]
+            found = False
+            for ext in ['.png', '.jpg', '.jpeg', '.PNG', '.JPG']:
+                fallback_path = os.path.join(path, images_folder, name_no_ext + ext)
+                if os.path.exists(fallback_path):
+                    image_path = fallback_path
+                    found = True
+                    break
+            if not found:
+                raise FileNotFoundError(f"❌ 找不到圖片！無論是 {base_image_name} 還是 .png/.jpg 變體都不存在於: {os.path.join(path, images_folder)}")
+
+        image_name = os.path.basename(image_path).split(".")[0]
         pil_image = Image.open(image_path)
         
         cam_info = CameraInfo(
@@ -117,26 +131,30 @@ def readColmapSceneInfo(path, images_folder="images", eval_mode=False):
         )
         cam_infos.append(cam_info)
 
-    # 依照影像名稱排序，確保順序與你原本的 0~59 幀一致
+    # 依照影像名稱排序，確保時間序列一致
     cam_infos = sorted(cam_infos, key=lambda x: x.image_name)
 
-    # 區分訓練集與測試集 (在此我們先全部作為訓練集)
     train_cam_infos = cam_infos
     test_cam_infos = []
 
     nerf_normalization = getNerfppNorm(train_cam_infos)
 
-    # 2. 讀取 3D 點雲 (VGGT 預測的鷹架)
-    xyz = []
-    rgb = []
+    # 🛡️ 升級 4：讀取點雲與空點雲防護罩
+    xyz, rgb = [], []
     for point3D_id, point3D in reconstruction.points3D.items():
         xyz.append(point3D.xyz)
-        rgb.append(point3D.color / 255.0) # COLMAP 顏色是 0-255，轉為 0-1
+        rgb.append(point3D.color / 255.0)
 
-    xyz = np.array(xyz)
-    rgb = np.array(rgb)
-    normals = np.zeros_like(xyz) # 初始點雲通常沒有法向量
-    
+    if len(xyz) == 0:
+        print("⚠️ 警告：COLMAP 註冊表中沒有點雲 (points3D 缺失)！正在自動生成隨機點雲以維持高斯球初始化...")
+        radius = nerf_normalization["radius"]
+        xyz = (np.random.rand(10000, 3) - 0.5) * (radius * 1.5)
+        rgb = np.random.rand(10000, 3)
+    else:
+        xyz = np.array(xyz)
+        rgb = np.array(rgb)
+
+    normals = np.zeros_like(xyz)
     pcd = BasicPointCloud(points=xyz, colors=rgb, normals=normals)
     ply_path = os.path.join(sparse_path, "points.ply")
 

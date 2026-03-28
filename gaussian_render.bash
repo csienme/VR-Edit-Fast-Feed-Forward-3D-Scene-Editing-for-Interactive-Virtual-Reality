@@ -1,0 +1,1 @@
+CUDA_LAUNCH_BLOCKING=1 python train_and_render_custom.py --colmap_path purify_scene/sparse --output_dir ./results_ours --iterations 7000

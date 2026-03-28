@@ -216,6 +216,11 @@ def main():
         help="Depth confidence threshold to filter low-confidence depth values",
     )
 
+
+
+
+
+
     # Evaluation parameters (only used when evaluation is enabled)
     parser.add_argument(
         "--chamfer_max_dist",
@@ -299,7 +304,7 @@ def main():
 
     # Create output directory
     args.output_path.mkdir(parents=True, exist_ok=True)
-    output_scene_dir = args.output_path / "custom_dataset"
+    output_scene_dir = args.output_path / f"custom_dataset_{args.data_path}"
 
     # Check if already processed
     if (output_scene_dir / "metrics.json").exists() and args.enable_evaluation:
