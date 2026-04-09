@@ -647,14 +647,18 @@ def infer_vggt_and_reconstruct(
     dtype: torch.dtype,
     depth_conf_thresh: float,
     image_paths: list = None,
-) -> Tuple[
-    np.ndarray,
-    np.ndarray,
-    List[np.ndarray],
-    List[np.ndarray],
-    List[np.ndarray],
-    float,
-]:
+) -> Tuple[np.ndarray, np.ndarray, List[np.ndarray], List[np.ndarray], List[np.ndarray], float, np.ndarray, np.ndarray, np.ndarray]:
+    
+    # 💥 SOTA Upgrade: 註冊 Forward Hook 攔截 Aggregator 的最終特徵
+    activation = {}
+    def hook(module, input, output):
+        # output[0][-1] 是最後一個 block 的輸出，形狀為 (B*S, P, C)
+        # output[1] 是 patch_start_idx (跳過 camera/register tokens)
+        activation['raw_feats'] = output[0][-1].detach().float().cpu().numpy()
+        activation['patch_start'] = output[1]
+    
+    handle = model.aggregator.register_forward_hook(hook)
+
     torch.cuda.synchronize()
     start = time.time()
     with torch.cuda.amp.autocast(dtype=dtype):
@@ -664,12 +668,34 @@ def infer_vggt_and_reconstruct(
     end = time.time()
     inference_time_ms = (end - start) * 1000.0
 
-    extrinsic, intrinsic = pose_encoding_to_extri_intri(
-        predictions["pose_enc"], (vgg_input.shape[2], vgg_input.shape[3])
-    )
+    handle.remove() # 拔除 Hook 避免記憶體洩漏
 
+    # ── 提取與重構空間特徵 (Dense Features) ──
+    S = vgg_input.shape[1] if len(vgg_input.shape) == 5 else vgg_input.shape[0]
+    H_in, W_in = vgg_input.shape[-2:]
+    patch_h, patch_w = H_in // 14, W_in // 14
+    
+    raw_feats = activation['raw_feats'] # 原始形狀為 (B, S, P, 2C)
+    patch_start = activation['patch_start']
+    
+    # 💥 降維防禦：拔除 Batch 維度，確保形狀為 (S, P, 2C)
+    if len(raw_feats.shape) == 4:
+        raw_feats = raw_feats[0] 
+        
+    # 剔除 Special Tokens，僅保留 Spatial Patches (現在切的確實是 P 維度)
+    spatial_feats = raw_feats[:, patch_start:, :] 
+    
+    # 重構為標準 2D 空間特徵圖
+    dense_features_np = spatial_feats.reshape(S, patch_h, patch_w, -1)
+    dense_features_np = np.transpose(dense_features_np, (0, 3, 1, 2)) # 轉為 (S, C, H, W)   
+
+    # ── 原有幾何與信賴度處理 ──
+    extrinsic, intrinsic = pose_encoding_to_extri_intri(
+        predictions["pose_enc"], (vgg_input.shape[-2], vgg_input.shape[-1])
+    )
     depth_tensor = predictions["depth"]
     depth_conf = predictions["depth_conf"]
+    
     depth_conf_np = depth_conf[0].detach().float().cpu().numpy()
     depth_mask = depth_conf_np >= depth_conf_thresh
     depth_filtered = depth_tensor[0].detach().float().cpu().numpy()
@@ -679,14 +705,11 @@ def infer_vggt_and_reconstruct(
     extrinsic_np = extrinsic[0].detach().float().cpu().numpy()
     intrinsic_np = intrinsic[0].detach().float().cpu().numpy()
 
-    world_points = unproject_depth_map_to_point_map(
-        depth_np, extrinsic_np, intrinsic_np
-    )
-    all_points: List[np.ndarray] = []
-    all_colors: List[np.ndarray] = []
-
-    # Prepare RGB images aligned with vgg_input for coloring point clouds (0-255, uint8)
-    vgg_np = vgg_input.detach().float().cpu().numpy()  # [S, 3, H, W] in [0,1]
+    world_points = unproject_depth_map_to_point_map(depth_np, extrinsic_np, intrinsic_np)
+    all_points, all_colors = [], []
+    vgg_np = vgg_input.detach().float().cpu().numpy()
+    
+    if len(vgg_np.shape) == 5: vgg_np = vgg_np[0]
 
     for frame_idx in range(world_points.shape[0]):
         points = world_points[frame_idx].reshape(-1, 3)
@@ -694,39 +717,17 @@ def infer_vggt_and_reconstruct(
         valid_points = points[valid_mask]
         if len(valid_points) > 0:
             all_points.append(valid_points)
+            img_chw = vgg_np[frame_idx]
+            img_hwc = ((np.transpose(img_chw, (1, 2, 0)) * 255.0).clip(0, 255).astype(np.uint8))
+            all_colors.append(img_hwc.reshape(-1, 3)[valid_mask])
 
-            # Generate corresponding colors
-            img_chw = vgg_np[frame_idx]  # [3, H, W]
-            img_hwc = (
-                (np.transpose(img_chw, (1, 2, 0)) * 255.0).clip(0, 255).astype(np.uint8)
-            )  # [H, W, 3] uint8
-            rgb_flat = img_hwc.reshape(-1, 3)
-            valid_colors = rgb_flat[valid_mask]
-            all_colors.append(valid_colors)
+    all_cam_to_world_mat = list(to_homogeneous(extrinsic_np))
 
-    camera_poses = to_homogeneous(extrinsic_np)
-    all_cam_to_world_mat = list(camera_poses)
-
-    # return (
-    #     extrinsic_np,
-    #     intrinsic_np,
-    #     all_points,
-    #     all_colors,
-    #     all_cam_to_world_mat,
-    #     inference_time_ms,
-    # )
-
-    # PAUL MOD 
-    # add depth map to return values for later evaluation
-
+    # 新增 depth_conf_np 與 dense_features_np 回傳
     return (
-        extrinsic_np,
-        intrinsic_np,
-        all_points,
-        all_colors,
-        all_cam_to_world_mat,
-        inference_time_ms,
-        depth_np,
+        extrinsic_np, intrinsic_np, all_points, all_colors,
+        all_cam_to_world_mat, inference_time_ms, depth_np,
+        depth_conf_np, dense_features_np
     )
 
 

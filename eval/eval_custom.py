@@ -265,6 +265,11 @@ def main():
         help="Specify 'all frame' to render all frames in the data_path."
     )
     
+    parser.add_argument(
+        "--exp_name", 
+        type=str, 
+        help="exp_name."
+    )
     #=====================================================================
     #PAUL_MOD END
 
@@ -401,6 +406,8 @@ def main():
             all_cam_to_world_mat,
             inference_time_ms,
             dense_depth_maps, # PAUL MOD add new return value for depth maps
+            x,
+            y
         ) = infer_vggt_and_reconstruct(
             model, vgg_input, dtype, args.depth_conf_thresh, image_paths
         )
@@ -425,8 +432,9 @@ def main():
             else:
                 print(f"\n🚀 啟動 Generative 3D Inpainting 映射")
                 
+            
 
-
+                output_img_dir = output_scene_dir / f"{args.exp_name}"
 
                 # 引用我們剛剛建立的新模組
                 from eval.generative_inpaint_module import generative_multi_ref_propagation
@@ -486,7 +494,7 @@ def main():
                             dense_depth_maps=dense_depth_maps, 
                             all_cam_to_world_mat=all_cam_to_world_mat, 
                             intrinsics=intrinsic_np, 
-                            output_dir=output_scene_dir,
+                            output_dir=output_img_dir,
                             ref_cache=global_ref_cache  
                         )
                         
@@ -527,7 +535,7 @@ def main():
                         perfect_rgb, _ = global_ref_cache[ref_idx]
                         
                         # 定義儲存路徑
-                        save_path = output_scene_dir / "gen_3d_prop" / f"inpainted_{ref_idx}.png"
+                        save_path = output_img_dir/ f"inpainted_{ref_idx}.png"
                         
                         # 強制覆寫！(如果是 27 號就會無中生有補齊，56和0號則是把瑕疵圖蓋掉)
                         cv2.imwrite(str(save_path), perfect_rgb)
@@ -539,7 +547,6 @@ def main():
 
 
         #PAUL_MOD END
-
         # ================================
         # ================================
 

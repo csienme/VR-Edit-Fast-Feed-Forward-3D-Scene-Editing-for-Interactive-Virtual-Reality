@@ -1,1 +1,1 @@
-python eval/eval_custom.py     --data_path mini_test_book    --mask_path mini_test_book/label     --enable_gen_3d_prop --generate "all frame"
+python eval/eval_custom.py     --data_path mini_test_trash    --mask_path mini_test_trash/label     --enable_gen_3d_prop --generate "all frame" --exp_name "test"

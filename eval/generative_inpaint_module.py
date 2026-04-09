@@ -259,8 +259,8 @@ def generative_multi_ref_propagation(
     # 2. 結算邊界紋理撕裂誤差 (取最大值，只要有一個 Ref 補丁嚴重拉扯，就視為該視角崩潰)
     final_boundary_mse = max(boundary_mses) if boundary_mses else 0.0
     
-    os.makedirs(output_dir / "gen_3d_prop", exist_ok=True)
-    cv2.imwrite(str(output_dir / "gen_3d_prop" / f"inpainted_{target_idx}.png"), final_canvas)
+    os.makedirs(output_dir, exist_ok=True)
+    cv2.imwrite(str(output_dir / f"inpainted_{target_idx}.png"), final_canvas)
     
     print(f"✅ V_{target_idx} 處理完成！")
     print(f"   - 剩餘紅色死角面積: {red_area} 像素")
