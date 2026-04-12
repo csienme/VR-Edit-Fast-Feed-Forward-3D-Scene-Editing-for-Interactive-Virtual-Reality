@@ -334,7 +334,7 @@ def train_and_render(args):
         for cam in tqdm(test_cameras, desc="Rendering"):
             pkg = render(cam, gaussians, pipe, bg)
             save_image(pkg["render"],
-                       os.path.join(args.output_dir, f"{cam.image_name}.png"))
+                       os.path.join(args.output_dir, f"{cam.image_name}"))
     print(f"✅ Done → {args.output_dir}")
 
 

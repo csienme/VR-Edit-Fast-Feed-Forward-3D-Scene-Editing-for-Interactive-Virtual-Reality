@@ -1,1 +1,0 @@
-python ablation_independent_lama.py     --data_path mini_test     --mask_path mini_test/label     --output_dir mini_test_ablation_independent

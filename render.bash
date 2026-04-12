@@ -1,1 +1,1 @@
-python train_render.py     --init_colmap    purify_scene_only60     --train_img_dir  eval_results_custom/custom_dataset_mini_test_trash/test     --aligned_gt     aligned_gt_cameras.pkl     --output_dir     ./renders_40_new
+python train_render.py     --colmap_dir    purify_book        --nvs_pose      purify_hybrid_book     --train_img_dir  purify_book/images    --output_dir    ./renders_book

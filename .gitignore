@@ -171,3 +171,6 @@ purify_scene_ablation/
 
 *.pt
 *.png
+
+*.bin
+*.ply

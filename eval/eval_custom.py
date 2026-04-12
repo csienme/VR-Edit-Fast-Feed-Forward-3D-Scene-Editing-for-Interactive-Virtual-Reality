@@ -270,6 +270,12 @@ def main():
         type=str, 
         help="exp_name."
     )
+    parser.add_argument(
+        "--n_skip",
+        type=int,
+        default=0,
+        help="跳過前 N 張圖（字母排序後），只處理剩餘圖。例如 --n_skip 40 在100張目錄中只取後60張。",
+    )
     #=====================================================================
     #PAUL_MOD END
 
@@ -338,6 +344,9 @@ def main():
 
     # Load scene data
     image_paths = get_sorted_image_paths(color_dir)
+    if args.n_skip > 0:
+        image_paths = image_paths[args.n_skip:]
+        print(f"⏭️  Skipped first {args.n_skip} images, using remaining {len(image_paths)} images")
     if len(image_paths) == 0:
         print(f"❌ Error: No images found in {color_dir}")
         return
@@ -450,7 +459,7 @@ def main():
                 active_ref_indices = [best_center_idx]
                 
 
-                ALL_FRAMES = sum(1 for file in os.listdir(args.data_path) if file.endswith('.png'))
+                ALL_FRAMES = len(image_paths)  # 與實際處理的圖數一致，避免 n_skip 後 index 越界
 
 
                 if args.generate == "all frame":
