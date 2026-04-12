@@ -1,4 +1,4 @@
 python eval/eval_custom_colmap.py \
   --data_path merged_data/images \
-  --output_path purify_scene_hybrid
+  --output_path purify_hybrid
    

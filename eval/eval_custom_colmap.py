@@ -285,7 +285,15 @@ def main():
         print(f"❌ images directory not found: {images_dir}")
         return
 
-    image_path_list = sorted(glob.glob(os.path.join(str(images_dir), "*")))
+    all_paths = glob.glob(os.path.join(str(images_dir), "*"))
+    inpainted_paths = sorted(
+        [p for p in all_paths if os.path.basename(p).startswith("inpainted_")],
+        key=lambda p: int(os.path.basename(p).rsplit(".", 1)[0].split("_")[-1])
+    )
+    other_paths = sorted(
+        [p for p in all_paths if not os.path.basename(p).startswith("inpainted_")]
+    )
+    image_path_list = inpainted_paths + other_paths
     if len(image_path_list) == 0:
         print(f"❌ No images found in {images_dir}")
         return

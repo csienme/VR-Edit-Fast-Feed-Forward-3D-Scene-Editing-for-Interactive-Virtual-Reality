@@ -1,1 +1,0 @@
-python train_render.py   --init_colmap purify_scene_hybrid/   --train_img_dir eval_results_custom/custom_dataset_mini_test_trash/test   --test_colmap purify_scene_hybrid/   --output_dir ./renders_40

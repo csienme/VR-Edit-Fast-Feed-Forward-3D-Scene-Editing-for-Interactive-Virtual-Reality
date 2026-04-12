@@ -1,0 +1,1 @@
+python train_render.py     --init_colmap    purify_scene_only60     --train_img_dir  eval_results_custom/custom_dataset_mini_test_trash/test     --aligned_gt     aligned_gt_cameras.pkl     --output_dir     ./renders_40_new

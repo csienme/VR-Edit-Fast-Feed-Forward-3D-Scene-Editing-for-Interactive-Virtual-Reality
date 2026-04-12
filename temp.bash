@@ -1,2 +1,2 @@
-bash render_hybrid.bash 
+bash render.bash 
 bash eval.bash
