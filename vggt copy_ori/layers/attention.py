@@ -60,7 +60,6 @@ class Attention(nn.Module):
         self.rope = rope
         self.kv_group_size = kv_group_size
 
-    # 🟢 [修改 3]：標準 Attention 加入 custom_attn_bias 讀取與傳遞
     def forward(self, x: Tensor, pos=None, global_merging=None) -> Tensor:
         merge_num = list(range(24))
 
@@ -209,14 +208,10 @@ class Attention(nn.Module):
 
             N = N_m
 
-        # 🟢 [重要修補] 讀取掛載的 custom_attn_bias，並透過 SDPA 進行權重調變
-        custom_bias = getattr(self, 'custom_attn_bias', None)
-
         x = F.scaled_dot_product_attention(
             q,
             k,
             v,
-            attn_mask=custom_bias,
             dropout_p=self.attn_drop.p if self.training else 0.0,
         )
         del q, k, v
@@ -230,7 +225,6 @@ class Attention(nn.Module):
 
 
 class MemEffAttention(Attention):
-# 🟢 [修改 4]：針對 MemEffAttention 加入 custom_attn_bias 加法運算
     def forward(
         self, x: Tensor, attn_bias=None, pos=None, global_merging=None
     ) -> Tensor:
@@ -253,15 +247,8 @@ class MemEffAttention(Attention):
 
         # Use scaled dot-product attention
         attn = torch.matmul(q, k.transpose(-2, -1)) * (self.head_dim**-0.5)
-        
         if attn_bias is not None:
             attn = attn + attn_bias
-
-        # 🟢 同樣將動態掛載的 Bias 在 Softmax 之前疊加，達成 Key 的權重抑制
-        custom_bias = getattr(self, 'custom_attn_bias', None)
-        if custom_bias is not None:
-            attn = attn + custom_bias
-
         attn = F.softmax(attn, dim=-1)
         x = torch.matmul(attn, v)
         x = x.reshape([B, N, C])

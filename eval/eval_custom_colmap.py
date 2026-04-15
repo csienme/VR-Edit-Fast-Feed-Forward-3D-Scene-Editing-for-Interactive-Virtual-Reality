@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn.functional as F
+from PIL import Image  # 🟢 用於讀取 Mask
 
 # CUDA backend config (match demo settings)
 torch.backends.cudnn.enabled = True
@@ -168,7 +169,8 @@ def rename_colmap_recons_and_rescale_camera(
     return reconstruction
 
 
-def run_vggt(model, vgg_input, dtype, image_paths=None):
+# 🟢 參數新增 inpaint_mask=None
+def run_vggt(model, vgg_input, dtype, image_paths=None, inpaint_mask=None):
     """
     Run VGGT to predict extrinsics, intrinsics, depth map and depth confidence.
     images: tensor [N, 3, H, W] in [0,1]
@@ -183,8 +185,13 @@ def run_vggt(model, vgg_input, dtype, image_paths=None):
     with torch.no_grad():
         with torch.amp.autocast("cuda", dtype=dtype):
             vgg_input_cuda = vgg_input.cuda().to(torch.bfloat16)
-
-            predictions = model(vgg_input_cuda, image_paths=image_paths)
+            
+            # 🟢 傳遞 inpaint_mask 給模型
+            predictions = model(
+                vgg_input_cuda, 
+                image_paths=image_paths, 
+                inpaint_mask=inpaint_mask
+            )
 
     torch.cuda.synchronize()
     end = time.time()
@@ -227,6 +234,13 @@ def parse_args():
         type=Path,
         required=True,
         help="Dataset root containing images/ directory",
+    )
+    # 🟢 [新增] 接收 mask_dir
+    parser.add_argument(
+        "--mask_dir",
+        type=Path,
+        default=None,
+        help="Directory containing 0/1 mask images for 3D Geometry Propagation",
     )
     parser.add_argument(
         "--output_path",
@@ -322,24 +336,71 @@ def main():
         return
     print(f"✅ Loaded {len(images)} images")
     images_array = np.stack(images)
-    vgg_input, patch_width, patch_height = get_vgg_input_imgs(images_array)
+    
+    vgg_input_data = get_vgg_input_imgs(images_array)
+    vgg_input = vgg_input_data[0] if isinstance(vgg_input_data, tuple) else vgg_input_data
+    
+    # 這裡的 vgg_input 形狀為 (S, 3, H, W)，取維度
+    S_len, _, grid_h, grid_w = vgg_input.shape
+    patch_width = grid_w // 14
+    patch_height = grid_h // 14
     print(f"📐 Image patch dimensions: {patch_width}x{patch_height}")
+
+    # ====================================================================
+    # 🚀 核心改裝：讀取 0/1 Mask Tensor 並傳給模型 (嚴格順序對應版)
+    # ====================================================================
+    inpaint_mask = None
+    if args.mask_dir is not None and args.mask_dir.exists():
+        print(f"🌀 讀取 3D Inpainting 遮罩...")
+        
+        # 1. 定義自然排序 (Natural Sort)，防止 10.png 排在 2.png 前面
+        import re
+        def natural_sort_key(s):
+            return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', str(s))]
+        
+        # 2. 抓取 Mask 資料夾內所有圖片並排序
+        mask_extensions = ('*.png', '*.jpg', '*.jpeg', '*.bmp')
+        mask_path_list = []
+        for ext in mask_extensions:
+            mask_path_list.extend(args.mask_dir.glob(ext))
+            
+        mask_path_list = sorted(mask_path_list, key=natural_sort_key)
+
+        # 3. 幾何對齊防禦：強制檢查數量是否絕對相等
+        if len(mask_path_list) != len(image_path_list):
+            raise ValueError(f"❌ 嚴重錯誤：圖片數量 ({len(image_path_list)}) 與 Mask 數量 ({len(mask_path_list)}) 不對等！")
+
+        # 4. 建立 Mask Tensor，形狀為 (1, S, H, W)
+        masks_tensor = torch.zeros((1, S_len, grid_h, grid_w), dtype=dtype, device=device)
+        
+        # 5. 放棄檔名匹配，直接依序 Zip 綁定
+        for i, (img_path, mask_path) in enumerate(zip(image_path_list, mask_path_list)):
+            mask_img = Image.open(mask_path).convert('L')
+            mask_img = mask_img.resize((grid_w, grid_h), Image.NEAREST)
+            
+            # >0 即視為需遮蔽的假像素
+            mask_np = np.array(mask_img) > 0 
+            masks_tensor[0, i] = torch.from_numpy(mask_np).to(dtype=dtype, device=device)
+            
+        inpaint_mask = masks_tensor
+        print(f"✅ {len(mask_path_list)} 張遮罩已按嚴格順序載入，Attention Bias 引擎啟動準備完成。")
 
     # Update attention layer patch dimensions in the model
     model.update_patch_dimensions(patch_width, patch_height)
 
+    # 🟢 呼叫 run_vggt 時，將 inpaint_mask 一起傳遞進去
     extrinsic, intrinsic, depth_map, depth_conf = run_vggt(
-        model, vgg_input, dtype, base_image_path_list
+        model, vgg_input, dtype, base_image_path_list, inpaint_mask=inpaint_mask
     )
 
     # Back-project depth to 3D (camera/world coords as defined by util func)
     points_3d = unproject_depth_map_to_point_map(depth_map, extrinsic, intrinsic)
 
     # Colors (resize to match depth/points map grid from vgg_input shape)
-    _, _, grid_h, grid_w = vgg_input.shape
+    _, _, grid_h_out, grid_w_out = vgg_input.shape
     points_rgb = F.interpolate(
         vgg_input,
-        size=(grid_h, grid_w),
+        size=(grid_h_out, grid_w_out),
         mode="bilinear",
         align_corners=False,
     )
@@ -360,7 +421,7 @@ def main():
 
     # Build pycolmap reconstruction
     print("🧩 Converting to COLMAP format...")
-    image_size = np.array([grid_w, grid_h])
+    image_size = np.array([grid_w_out, grid_h_out])
     camera_type = "PINHOLE"  # feedforward mode supports PINHOLE here
     reconstruction = batch_np_matrix_to_pycolmap_wo_track(
         points_3d,
@@ -377,7 +438,7 @@ def main():
         reconstruction,
         base_image_path_list,
         original_coords.detach().cpu().numpy(),
-        img_size=grid_w,
+        img_size=grid_w_out,
         shift_point2d_to_original_res=True,
         shared_camera=False,
     )

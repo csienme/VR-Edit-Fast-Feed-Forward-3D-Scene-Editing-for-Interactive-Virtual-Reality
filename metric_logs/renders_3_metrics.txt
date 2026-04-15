@@ -7,9 +7,9 @@
    ► PSNR  : 14.4168
    ► SSIM  : 0.1702
 
-【 局部指標 (Masked) - 3DGIC Protocol 】
+【 局部指標 (BBox Masked) - 對齊 MVIP/SPIn-NeRF 】
    ► m-FID   : 290.2235
-   ► m-LPIPS : 0.0630
-   ► m-PSNR  : 13.9463
+   ► m-LPIPS : 0.5737
+   ► m-PSNR  : 13.9792
    ► m-SSIM  : 0.1108
 ===========================================

@@ -98,10 +98,7 @@ class VGGT(nn.Module, PyTorchModelHubMixin):
         images: torch.Tensor,
         query_points: torch.Tensor = None,
         image_paths: list = None,
-        inpaint_mask: torch.Tensor = None,
     ):
-
-    
         """
         Forward pass of the VGGT model.
 
@@ -147,11 +144,9 @@ class VGGT(nn.Module, PyTorchModelHubMixin):
             with open(image_paths_file, "wb") as f:
                 pickle.dump(image_paths, f)
 
-        aggregated_tokens_list, patch_start_idx = self.aggregator(images, inpaint_mask=inpaint_mask)
+        aggregated_tokens_list, patch_start_idx = self.aggregator(images)
 
         predictions = {}
-
-
 
         if self.camera_head is not None:
             pose_enc_list = self.camera_head(aggregated_tokens_list)

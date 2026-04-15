@@ -6,7 +6,11 @@
 
 set -e  # 任何指令失敗就停止
 
-SCENES=("1" "2" "3" "4" "7" "9" "10" "12" "book" "test")
+if [ -n "$SCENE" ]; then
+    SCENES=("$SCENE")
+else
+    SCENES=("1" "2" "3" "4" "7" "9" "10" "12" "book" "test")
+fi
 
 for SCENE in "${SCENES[@]}"; do
     echo ""

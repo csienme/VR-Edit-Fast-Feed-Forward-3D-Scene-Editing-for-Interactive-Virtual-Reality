@@ -212,208 +212,263 @@ class Aggregator(nn.Module):
             if hasattr(self.patch_embed, "mask_token"):
                 self.patch_embed.mask_token.requires_grad_(False)
 
-    def forward(self, images: torch.Tensor) -> Tuple[List[torch.Tensor], int]:
-        """
-        Args:
-            images (torch.Tensor): Input images with shape [B, S, 3, H, W], in range [0, 1].
-                B: batch size, S: sequence length, 3: RGB channels, H: height, W: width
+    def forward(self, images: torch.Tensor, inpaint_mask=None) -> Tuple[List[torch.Tensor], int]:
+            B, S, C_in, H, W = images.shape
 
-        Returns:
-            (list[torch.Tensor], int):
-                The list of outputs from the attention blocks,
-                and the patch_start_idx indicating where patch tokens begin.
-        """
-        B, S, C_in, H, W = images.shape
+            if C_in != 3:
+                raise ValueError(f"Expected 3 input channels, got {C_in}")
 
-        if C_in != 3:
-            raise ValueError(f"Expected 3 input channels, got {C_in}")
+            # Normalize images and reshape for patch embed - ensure bf16 computation
+            images = images.to(torch.bfloat16)
+            images = (images - self._resnet_mean) / self._resnet_std
 
-        # Normalize images and reshape for patch embed - ensure bf16 computation
-        images = images.to(torch.bfloat16)
-        images = (images - self._resnet_mean) / self._resnet_std
+            # ==========================================================
+            # 🟢 [終極改裝 1/3]：建立雙引擎 Attention Bias 矩陣
+            # ==========================================================
+            global_attn_bias = None
+            frame_attn_bias = None
+            patch_mask = None
+            
+            if inpaint_mask is not None:
+                P_size = self.patch_size
+                # 確保 mask 為 bfloat16，並改變形狀以分離出 patch 的高與寬
+                mask_p = inpaint_mask.to(torch.bfloat16).view(B * S, H // P_size, P_size, W // P_size, P_size)
+                # 取每個 Patch 內的最大值（只要有一個像素是 1，整個 Patch 就是 1）
+                patch_mask = mask_p.max(dim=4)[0].max(dim=2)[0]
+                patch_mask = patch_mask.view(B * S, -1)
+                
+                # VGGT 序列最前面包含了 Camera 與 Register Tokens，不應被 Mask
+                special_mask = torch.zeros(B * S, self.patch_start_idx, device=images.device, dtype=torch.bfloat16)
+                full_frame_mask = torch.cat([special_mask, patch_mask], dim=1)
+                
+                # 🟢 引擎 A：單視角 Frame Bias (阻止局部特徵生成垃圾桶)
+                frame_attn_bias = full_frame_mask.view(B * S, 1, 1, -1) * (-10000.0)
+                
+                # 🟢 引擎 B：跨視角 Global Bias (逼迫向其他視角問路)
+                global_mask = full_frame_mask.view(B, -1)
+                global_attn_bias = global_mask.view(B, 1, 1, -1) * (-10000.0)
 
-        images = images.view(B * S, C_in, H, W)
-        patch_tokens = self.patch_embed(images)
-        del images
+            images = images.view(B * S, C_in, H, W)
+            patch_tokens = self.patch_embed(images)
+            del images
 
-        if isinstance(patch_tokens, dict):
-            patch_tokens = patch_tokens["x_norm_patchtokens"]
+            if isinstance(patch_tokens, dict):
+                patch_tokens = patch_tokens["x_norm_patchtokens"]
 
-        patch_tokens = patch_tokens.to(torch.bfloat16)
+            patch_tokens = patch_tokens.to(torch.bfloat16)
 
-        _, P, C = patch_tokens.shape
+            # ==========================================================
+            # 🟢 [終極改裝 2/3]：源頭特徵洗白 (Feature Initialization Overwrite)
+            # ==========================================================
+            if inpaint_mask is not None and patch_mask is not None:
+                # 針對每一張圖片，用周圍真實背景的平均特徵，覆寫掉 Mask 區域的黑洞特徵！
+                for idx in range(B * S):
+                    frame_p_mask = patch_mask[idx] # 形狀: (P,)
+                    real_indices = (frame_p_mask == 0)
+                    fake_indices = (frame_p_mask > 0)
+                    
+                    # 如果這張圖有真實背景，且有破洞 (避免整張全黑或全白報錯)
+                    if real_indices.any() and fake_indices.any():
+                        # 取出真實背景的 Token 特徵並平均
+                        mean_bg_feature = patch_tokens[idx, real_indices].mean(dim=0)
+                        # 強制覆寫假像素！殘差網路從此失去對垃圾桶的記憶。
+                        patch_tokens[idx, fake_indices] = mean_bg_feature
 
-        # Expand camera and register tokens to match batch size and sequence length
-        camera_token = slice_expand_and_flatten(
-            self.camera_token.to(torch.bfloat16), B, S
-        )
-        register_token = slice_expand_and_flatten(
-            self.register_token.to(torch.bfloat16), B, S
-        )
+            _, P, C = patch_tokens.shape
 
-        tokens = torch.cat([camera_token, register_token, patch_tokens], dim=1)
-        tokens = tokens.to(torch.bfloat16)
-        del camera_token, register_token, patch_tokens
-        # Explicitly clean up image data since patch embedding is complete
-        if "images_normalized" in locals():
-            del images_normalized
-
-        pos = None
-        if self.rope is not None:
-            pos = self.position_getter(
-                B * S, H // self.patch_size, W // self.patch_size, device="cuda"
+            # Expand camera and register tokens to match batch size and sequence length
+            camera_token = slice_expand_and_flatten(
+                self.camera_token.to(torch.bfloat16), B, S
+            )
+            register_token = slice_expand_and_flatten(
+                self.register_token.to(torch.bfloat16), B, S
             )
 
-        if self.patch_start_idx > 0:
-            # do not use position embedding for special tokens (camera and register tokens)
-            # so set pos to 0 for the special tokens
-            pos_original = pos
-            pos = pos + 1
-            pos_special = torch.zeros(
-                B * S, self.patch_start_idx, 2, device="cuda", dtype=torch.long
-            )
-            pos = torch.cat([pos_special, pos], dim=1)
-            # Clean up temporary variables
-            del pos_special, pos_original
+            tokens = torch.cat([camera_token, register_token, patch_tokens], dim=1)
+            tokens = tokens.to(torch.bfloat16)
+            del camera_token, register_token, patch_tokens
+            
+            # Explicitly clean up image data since patch embedding is complete
+            if "images_normalized" in locals():
+                del images_normalized
 
-        # update P because we added special tokens
-        _, P, C = tokens.shape
-
-        frame_idx = 0
-        global_idx = 0
-        output_list = []
-        block4DPT_idx = [4, 11, 17, 23]
-        global_merging = None
-
-        # Set global variables for attention visualization
-        if self.vis_attn_map:
-            import vggt.layers.attention as attn_module
-
-            # Set the global variables that attention.py needs
-            attn_module.vis_attn_map = True
-            attn_module.current_images = self._load_image_paths()  # Load from temp file
-        else:
-            import vggt.layers.attention as attn_module
-
-            attn_module.vis_attn_map = False
-
-        for block_num in range(self.aa_block_num):
-            torch.cuda.synchronize()
-            torch.cuda.empty_cache()
-
-            need_intermediates = True if block_num in block4DPT_idx else False
-            if block_num % 1 == 0:
-                # Clean up RoPE cache to prevent accumulation
-                if hasattr(self, "rope") and self.rope is not None:
-                    if hasattr(self.rope, "frequency_cache"):
-                        self.rope.frequency_cache.clear()
-                # Clean up position cache
-                if (
-                    hasattr(self, "position_getter")
-                    and self.position_getter is not None
-                ):
-                    if hasattr(self.position_getter, "position_cache"):
-                        # Keep only current size cache, clean up others
-                        current_cache = self.position_getter.position_cache.copy()
-                        if (
-                            len(current_cache) > 1
-                        ):  # If there are multiple cache entries
-                            self.position_getter.position_cache.clear()
-                            # Keep only the most recently used one
-                            if current_cache:
-                                key = list(current_cache.keys())[-1]
-                                self.position_getter.position_cache[key] = (
-                                    current_cache[key]
-                                )
-            # Avoid saving block_num to instance variable to reduce references
-            for attn_type in self.aa_order:
-                if attn_type == "frame":
-                    tokens, frame_idx, frame_intermediates = (
-                        self._process_frame_attention(
-                            tokens,
-                            B,
-                            S,
-                            P,
-                            C,
-                            frame_idx,
-                            pos=pos,
-                            need_intermediates=need_intermediates,
-                        )
-                    )
-                elif attn_type == "global":
-                    if self.merging is None:
-                        global_merging = None
-                    elif self.global_merging and block_num >= self.merging:
-                        global_merging = block_num
-                        # Set attention_map for visualization
-                        if self.vis_attn_map:
-                            import vggt.layers.attention as attn_module
-
-                            attn_module.attention_map = block_num
-                    tokens, global_idx, global_intermediates = (
-                        self._process_global_attention(
-                            tokens,
-                            B,
-                            S,
-                            P,
-                            C,
-                            global_idx,
-                            pos=pos,
-                            global_merging=global_merging,
-                            need_intermediates=need_intermediates,
-                        )
-                    )
-                else:
-                    raise ValueError(f"Unknown attention type: {attn_type}")
-
-            if block_num not in block4DPT_idx:
-                if "frame_intermediates" in locals():
-                    del frame_intermediates
-                if "global_intermediates" in locals():
-                    del global_intermediates
-            else:
-                concat_inter = torch.cat(
-                    [frame_intermediates[0].detach(), global_intermediates[0].detach()],
-                    dim=-1,
+            pos = None
+            if self.rope is not None:
+                pos = self.position_getter(
+                    B * S, H // self.patch_size, W // self.patch_size, device="cuda"
                 )
-                if concat_inter.dtype != torch.bfloat16:
-                    concat_inter = concat_inter.to(torch.bfloat16)
-                output_list.append(concat_inter)
-                del concat_inter, frame_intermediates, global_intermediates
 
-        # Do final cleanup before returning
-        del tokens, pos
-        if "pos_special" in locals():
-            del pos_special
-        if "pos_original" in locals():
-            del pos_original
-        torch.cuda.empty_cache()  # Final cleanup
+            if self.patch_start_idx > 0:
+                # do not use position embedding for special tokens (camera and register tokens)
+                # so set pos to 0 for the special tokens
+                pos_original = pos
+                pos = pos + 1
+                pos_special = torch.zeros(
+                    B * S, self.patch_start_idx, 2, device="cuda", dtype=torch.long
+                )
+                pos = torch.cat([pos_special, pos], dim=1)
+                # Clean up temporary variables
+                del pos_special, pos_original
 
-        return output_list, self.patch_start_idx
+            # update P because we added special tokens
+            _, P, C = tokens.shape
+
+            frame_idx = 0
+            global_idx = 0
+            output_list = []
+            block4DPT_idx = [4, 11, 17, 23]
+            global_merging = None
+
+            # Set global variables for attention visualization
+            if self.vis_attn_map:
+                import vggt.layers.attention as attn_module
+
+                # Set the global variables that attention.py needs
+                attn_module.vis_attn_map = True
+                attn_module.current_images = self._load_image_paths()  # Load from temp file
+            else:
+                import vggt.layers.attention as attn_module
+
+                attn_module.vis_attn_map = False
+
+            for block_num in range(self.aa_block_num):
+                torch.cuda.synchronize()
+                torch.cuda.empty_cache()
+
+                need_intermediates = True if block_num in block4DPT_idx else False
+                if block_num % 1 == 0:
+                    # Clean up RoPE cache to prevent accumulation
+                    if hasattr(self, "rope") and self.rope is not None:
+                        if hasattr(self.rope, "frequency_cache"):
+                            self.rope.frequency_cache.clear()
+                    # Clean up position cache
+                    if (
+                        hasattr(self, "position_getter")
+                        and self.position_getter is not None
+                    ):
+                        if hasattr(self.position_getter, "position_cache"):
+                            # Keep only current size cache, clean up others
+                            current_cache = self.position_getter.position_cache.copy()
+                            if (
+                                len(current_cache) > 1
+                            ):  # If there are multiple cache entries
+                                self.position_getter.position_cache.clear()
+                                # Keep only the most recently used one
+                                if current_cache:
+                                    key = list(current_cache.keys())[-1]
+                                    self.position_getter.position_cache[key] = (
+                                        current_cache[key]
+                                    )
+                # Avoid saving block_num to instance variable to reduce references
+                for attn_type in self.aa_order:
+                    if attn_type == "frame":
+                        tokens, frame_idx, frame_intermediates = (
+                            self._process_frame_attention(
+                                tokens,
+                                B,
+                                S,
+                                P,
+                                C,
+                                frame_idx,
+                                pos=pos,
+                                need_intermediates=need_intermediates,
+                                frame_attn_bias=frame_attn_bias,  # 🟢 傳入 frame_attn_bias!
+                            )
+                        )
+                    elif attn_type == "global":
+                        # 🟢 確保在 Inpaint 模式下不會觸發 Merging 導致維度崩潰
+                        if self.merging is None or inpaint_mask is not None:
+                            global_merging = None
+                        elif self.global_merging and block_num >= self.merging:
+                            global_merging = block_num
+                            # Set attention_map for visualization
+                            if self.vis_attn_map:
+                                import vggt.layers.attention as attn_module
+
+                                attn_module.attention_map = block_num
+                        tokens, global_idx, global_intermediates = (
+                            self._process_global_attention(
+                                tokens,
+                                B,
+                                S,
+                                P,
+                                C,
+                                global_idx,
+                                pos=pos,
+                                global_merging=global_merging,
+                                need_intermediates=need_intermediates,
+                                global_attn_bias=global_attn_bias,
+                            )
+                        )
+                    else:
+                        raise ValueError(f"Unknown attention type: {attn_type}")
+
+                if block_num not in block4DPT_idx:
+                    if "frame_intermediates" in locals():
+                        del frame_intermediates
+                    if "global_intermediates" in locals():
+                        del global_intermediates
+                else:
+                    concat_inter = torch.cat(
+                        [frame_intermediates[0].detach(), global_intermediates[0].detach()],
+                        dim=-1,
+                    )
+                    if concat_inter.dtype != torch.bfloat16:
+                        concat_inter = concat_inter.to(torch.bfloat16)
+                    output_list.append(concat_inter)
+                    del concat_inter, frame_intermediates, global_intermediates
+
+            # Do final cleanup before returning
+            del tokens, pos
+            if "pos_special" in locals():
+                del pos_special
+            if "pos_original" in locals():
+                del pos_original
+            torch.cuda.empty_cache()  # Final cleanup
+
+            return output_list, self.patch_start_idx
 
     def _process_frame_attention(
-        self, tokens, B, S, P, C, frame_idx, pos=None, need_intermediates=False
-    ):
-        """
-        Process frame attention blocks. We keep tokens in shape (B*S, P, C).
-        """
-        # If needed, reshape tokens or positions:
-        if tokens.shape != (B * S, P, C):
-            tokens = tokens.view(B, S, P, C).view(B * S, P, C)
+            self, 
+            tokens, 
+            B, 
+            S, 
+            P, 
+            C, 
+            frame_idx, 
+            pos=None, 
+            need_intermediates=False,
+            frame_attn_bias=None,  # 🟢 [終極改裝] 接收 Frame Bias
+        ):
+            """
+            Process frame attention blocks. We keep tokens in shape (B*S, P, C).
+            """
+            # If needed, reshape tokens or positions:
+            if tokens.shape != (B * S, P, C):
+                tokens = tokens.view(B, S, P, C).view(B * S, P, C)
 
-        if pos is not None and pos.shape != (B * S, P, 2):
-            pos = pos.view(B, S, P, 2).view(B * S, P, 2)
+            if pos is not None and pos.shape != (B * S, P, 2):
+                pos = pos.view(B, S, P, 2).view(B * S, P, 2)
 
-        intermediates = [] if need_intermediates else None
+            intermediates = [] if need_intermediates else None
 
-        # by default, self.aa_block_size=1, which processes one block at a time
-        for _ in range(self.aa_block_size):
-            tokens = self.frame_blocks[frame_idx](tokens, pos=pos)
-            frame_idx += 1
-            if need_intermediates:
-                intermediates.append(tokens.view(B, S, P, C))
+            # by default, self.aa_block_size=1, which processes one block at a time
+            for _ in range(self.aa_block_size):
+                # 🟢 1. 動態注入 Frame Bias，阻斷垃圾桶的局部特徵生成
+                if frame_attn_bias is not None:
+                    self.frame_blocks[frame_idx].attn.custom_attn_bias = frame_attn_bias
 
-        return tokens, frame_idx, intermediates
+                tokens = self.frame_blocks[frame_idx](tokens, pos=pos)
+                
+                # 🟢 2. 清理掛載，保持模組純淨
+                if frame_attn_bias is not None:
+                    self.frame_blocks[frame_idx].attn.custom_attn_bias = None
+
+                frame_idx += 1
+                if need_intermediates:
+                    intermediates.append(tokens.view(B, S, P, C))
+
+            return tokens, frame_idx, intermediates
 
     def _process_global_attention(
         self,
@@ -426,6 +481,7 @@ class Aggregator(nn.Module):
         pos=None,
         global_merging=None,
         need_intermediates=False,
+        global_attn_bias=None, # 🟢 接收 Global Bias
     ):
         """
         Process global attention blocks. We keep tokens in shape (B, S*P, C).
@@ -440,16 +496,27 @@ class Aggregator(nn.Module):
 
         # by default, self.aa_block_size=1, which processes one block at a time
         for _ in range(self.aa_block_size):
+            # 🟢 1. 動態注入 Global Bias，逼迫 Mask 區域向其他視角問路
+            if global_attn_bias is not None:
+                self.global_blocks[global_idx].attn.custom_attn_bias = global_attn_bias
+
             tokens = self.global_blocks[global_idx](
                 tokens,
                 pos=pos,
                 global_merging=global_merging,
             )
+
+            # 🟢 2. 清理戰場
+            if global_attn_bias is not None:
+                self.global_blocks[global_idx].attn.custom_attn_bias = None
+
             global_idx += 1
             if need_intermediates:
                 intermediates.append(tokens.view(B, S, P, C))
 
         return tokens, global_idx, intermediates
+    
+    
 
     def _load_image_paths(self):
         """Load image paths from temporary file for visualization"""

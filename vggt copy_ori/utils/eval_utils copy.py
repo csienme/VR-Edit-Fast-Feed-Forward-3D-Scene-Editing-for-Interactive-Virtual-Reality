@@ -22,6 +22,7 @@ import open3d as o3d  # for point cloud processing and Chamfer Distance computat
 from scipy.spatial.transform import Rotation
 from torchvision import transforms as TF
 
+
 from vggt.utils.geometry import unproject_depth_map_to_point_map
 from vggt.utils.pose_enc import pose_encoding_to_extri_intri
 
@@ -646,69 +647,29 @@ def infer_vggt_and_reconstruct(
     dtype: torch.dtype,
     depth_conf_thresh: float,
     image_paths: list = None,
-    inpaint_mask: torch.Tensor = None, # 🟢 注入點 1：接收傳入的遮罩
-) -> Tuple[np.ndarray, np.ndarray, List[np.ndarray], List[np.ndarray], List[np.ndarray], float, np.ndarray, np.ndarray, np.ndarray]:
-    
-    # --- [Step 1] 註冊 Hook 攔截特徵 (用於 O1 特徵對齊) ---
-    activation = {}
-    def hook(module, input, output):
-        # output[0][-1] 是最後一個 block 的輸出
-        # output[1] 是 patch_start_idx
-        activation['raw_feats'] = output[0][-1].detach().float().cpu().numpy()
-        activation['patch_start'] = output[1]
-    
-    handle = model.aggregator.register_forward_hook(hook)
+) -> Tuple[
+    np.ndarray,
+    np.ndarray,
+    List[np.ndarray],
+    List[np.ndarray],
+    List[np.ndarray],
+    float,
+]:
+    torch.cuda.synchronize()
+    start = time.time()
+    with torch.cuda.amp.autocast(dtype=dtype):
+        vgg_input_cuda = vgg_input.cuda().to(torch.bfloat16)
+        predictions = model(vgg_input_cuda, image_paths=image_paths)
+    torch.cuda.synchronize()
+    end = time.time()
+    inference_time_ms = (end - start) * 1000.0
 
-    # --- [Step 2] 模型推理 (核心幾何傳遞發生點) ---
-    try:
-        torch.cuda.synchronize()
-        start_time = time.time()
-        
-        with torch.cuda.amp.autocast(dtype=dtype):
-            # 將輸入影像搬移至 GPU
-            vgg_input_cuda = vgg_input.cuda().to(torch.bfloat16)
-            
-            # 🟢 注入點 2：將 Mask 搬移至相同 GPU 與型別，並餵給模型
-            inpaint_mask_cuda = None
-            if inpaint_mask is not None:
-                inpaint_mask_cuda = inpaint_mask.cuda().to(vgg_input_cuda.dtype)
-
-            predictions = model(
-                vgg_input_cuda, 
-                inpaint_mask=inpaint_mask_cuda, # 🟢 觸發 aggregator.py 的 Bias 邏輯
-                image_paths=image_paths
-            )
-            
-        torch.cuda.synchronize()
-        end_time = time.time()
-        inference_time_ms = (end_time - start_time) * 1000.0
-        
-    finally:
-        handle.remove() # 🟢 確保無論成功或失敗都拔除 Hook，防紅字/報錯
-
-    # --- [Step 3] 提取與重構 Dense Features (O1 數據源) ---
-    S = vgg_input.shape[1] if len(vgg_input.shape) == 5 else vgg_input.shape[0]
-    H_in, W_in = vgg_input.shape[-2:]
-    patch_h, patch_w = H_in // 14, W_in // 14
-    
-    raw_feats = activation['raw_feats'] 
-    patch_start = activation['patch_start']
-    
-    # 確保 shape 為 (S, P, C)
-    if len(raw_feats.shape) == 4:
-        raw_feats = raw_feats[0] 
-        
-    spatial_feats = raw_feats[:, patch_start:, :] 
-    dense_features_np = spatial_feats.reshape(S, patch_h, patch_w, -1)
-    dense_features_np = np.transpose(dense_features_np, (0, 3, 1, 2)) 
-
-    # --- [Step 4] 幾何反投影 (建立 3D 骨架) ---
     extrinsic, intrinsic = pose_encoding_to_extri_intri(
-        predictions["pose_enc"], (H_in, W_in)
+        predictions["pose_enc"], (vgg_input.shape[2], vgg_input.shape[3])
     )
+
     depth_tensor = predictions["depth"]
     depth_conf = predictions["depth_conf"]
-    
     depth_conf_np = depth_conf[0].detach().float().cpu().numpy()
     depth_mask = depth_conf_np >= depth_conf_thresh
     depth_filtered = depth_tensor[0].detach().float().cpu().numpy()
@@ -718,13 +679,14 @@ def infer_vggt_and_reconstruct(
     extrinsic_np = extrinsic[0].detach().float().cpu().numpy()
     intrinsic_np = intrinsic[0].detach().float().cpu().numpy()
 
-    # 將深度圖轉為 3D 點雲
-    world_points = unproject_depth_map_to_point_map(depth_np, extrinsic_np, intrinsic_np)
-    
-    all_points, all_colors = [], []
-    vgg_np = vgg_input.detach().float().cpu().numpy()
-    if len(vgg_np.shape) == 5: 
-        vgg_np = vgg_np[0]
+    world_points = unproject_depth_map_to_point_map(
+        depth_np, extrinsic_np, intrinsic_np
+    )
+    all_points: List[np.ndarray] = []
+    all_colors: List[np.ndarray] = []
+
+    # Prepare RGB images aligned with vgg_input for coloring point clouds (0-255, uint8)
+    vgg_np = vgg_input.detach().float().cpu().numpy()  # [S, 3, H, W] in [0,1]
 
     for frame_idx in range(world_points.shape[0]):
         points = world_points[frame_idx].reshape(-1, 3)
@@ -732,25 +694,39 @@ def infer_vggt_and_reconstruct(
         valid_points = points[valid_mask]
         if len(valid_points) > 0:
             all_points.append(valid_points)
-            img_chw = vgg_np[frame_idx]
-            # 轉換為 HWC 以利存成顏色
-            img_hwc = ((np.transpose(img_chw, (1, 2, 0)) * 255.0).clip(0, 255).astype(np.uint8))
-            all_colors.append(img_hwc.reshape(-1, 3)[valid_mask])
 
-    # 輔助工具：將外參矩陣轉為齊次座標格式
-    def to_homogeneous(mats):
-        b = mats.shape[0]
-        res = np.eye(4)[np.newaxis, ...].repeat(b, axis=0)
-        res[:, :3, :4] = mats
-        return res
+            # Generate corresponding colors
+            img_chw = vgg_np[frame_idx]  # [3, H, W]
+            img_hwc = (
+                (np.transpose(img_chw, (1, 2, 0)) * 255.0).clip(0, 255).astype(np.uint8)
+            )  # [H, W, 3] uint8
+            rgb_flat = img_hwc.reshape(-1, 3)
+            valid_colors = rgb_flat[valid_mask]
+            all_colors.append(valid_colors)
 
-    all_cam_to_world_mat = list(to_homogeneous(extrinsic_np))
+    camera_poses = to_homogeneous(extrinsic_np)
+    all_cam_to_world_mat = list(camera_poses)
 
-    # --- [Step 5] 回傳所有 3DGS 初始化需要的資料 ---
+    # return (
+    #     extrinsic_np,
+    #     intrinsic_np,
+    #     all_points,
+    #     all_colors,
+    #     all_cam_to_world_mat,
+    #     inference_time_ms,
+    # )
+
+    # PAUL MOD 
+    # add depth map to return values for later evaluation
+
     return (
-        extrinsic_np, intrinsic_np, all_points, all_colors,
-        all_cam_to_world_mat, inference_time_ms, depth_np,
-        depth_conf_np, dense_features_np
+        extrinsic_np,
+        intrinsic_np,
+        all_points,
+        all_colors,
+        all_cam_to_world_mat,
+        inference_time_ms,
+        depth_np,
     )
 
 
