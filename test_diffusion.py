@@ -67,13 +67,16 @@ def run_test(img_path: str, output_path: str):
     mask_pil = Image.fromarray(mask_blurred).convert("L")
 
     # 6. SD Inpaint（純 2D，無 ControlNet 深度條件）
+# 正向提示：極力強調「空無一物」、「無縫接合」、「延續周圍」
     prompt = (
-        "realistic background, seamless surface texture, "
-        "consistent lighting, photorealistic"
+        "seamless continuation of surroundings, "
     )
+
     negative_prompt = (
-        "objects, blurry, artifacts, unnatural, floating, "
-        "distorted, low quality, cardboard box, bag"
+        # 具體物體類別（涵蓋 SPInNeRF 常見場景的物體）
+        "object, masked area"
+        "table"
+        "human"
     )
 
     print("  🎨 開始 2D Inpainting（無深度條件）...")
@@ -87,8 +90,8 @@ def run_test(img_path: str, output_path: str):
         mask_image          = mask_pil.resize((sd_w, sd_h), Image.NEAREST),
         height              = sd_h,
         width               = sd_w,
-        num_inference_steps = 25,
-        guidance_scale      = 7.5,
+        num_inference_steps = 20,
+        guidance_scale      = 8,
     ).images[0]
     # 還原原始解析度
     result = result.resize((W, H), Image.LANCZOS)

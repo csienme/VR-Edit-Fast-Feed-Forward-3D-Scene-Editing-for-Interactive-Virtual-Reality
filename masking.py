@@ -10,10 +10,12 @@ import os
 import cv2
 import numpy as np
 from pathlib import Path
+scene = "book"
 
-IMG_DIR  = Path("spinnerf-dataset/1/images_4")
-MASK_DIR = Path("spinnerf-dataset/1/images_4/label")
-OUT_DIR  = Path("masked_train_1")
+
+IMG_DIR  = Path(f"spinnerf-dataset/{scene}/images_4")
+MASK_DIR = Path(f"spinnerf-dataset/{scene}/images_4/label")
+OUT_DIR  = Path(f"masked_train_{scene}")
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 

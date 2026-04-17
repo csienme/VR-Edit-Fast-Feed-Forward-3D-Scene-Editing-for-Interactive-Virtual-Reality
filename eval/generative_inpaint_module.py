@@ -45,7 +45,10 @@ def extrapolate_3d_geometry(raw_depth, mask_2d, K):
     XY_rem = XY[~inlier_mask1]
     Z_rem = Z[~inlier_mask1]
     
+
+    global has_plane2
     has_plane2 = False
+
     if len(XY_rem) > 20:
         ransac2 = RANSACRegressor(residual_threshold=0.05, random_state=42)
         ransac2.fit(XY_rem, Z_rem)
@@ -109,11 +112,22 @@ except ImportError:
     pipe = None
 
 
+
+try:
+    from simple_lama_inpainting import SimpleLama
+    print("⏳ 正在載入 LaMa 模型至 GPU...")
+    lama_model = SimpleLama()
+    print("✅ LaMa 模型載入完成！")
+except ImportError:
+    print("⚠️ 尚未安裝 simple-lama-inpainting，請執行 pip install simple-lama-inpainting")
+    lama_model = None
+
 # ==============================================================================
 # [模組 2] 🎨 幾何條件約束的紋理生成 (Depth-Conditioned Texture Hallucination)
 # ==============================================================================
 def run_diffusion_texture_generation(img_path, mask_2d, scaffold_depth,
-                                     prev_inpainted_bgr=None):
+                                     prev_inpainted_bgr=None,
+                                     first_ref_depth=None):
     """
     prev_inpainted_bgr: 第一個 ref view 的 inpainted 結果（Visual Prompting）。
                         提供時 SD 繼承前人確立的紋理風格，確保多視角一致性。
@@ -145,6 +159,23 @@ def run_diffusion_texture_generation(img_path, mask_2d, scaffold_depth,
         valid_depth = np.array([1.0])
     min_d, max_d = valid_depth.min(), valid_depth.max()
     depth_norm   = 255.0 * (max_d - scaffold_depth) / (max_d - min_d + 1e-5)
+
+
+    # 若提供 first_ref_depth，與當前 depth 各 50% 混合送 ControlNet
+    if first_ref_depth is not None:
+        def norm01(d):
+            v = d[(d > 0) & ~np.isnan(d)]
+            if len(v) == 0: return np.zeros_like(d, dtype=np.float32)
+            return np.clip((d - v.min()) / (v.max() - v.min() + 1e-8), 0, 1).astype(np.float32)
+        cur_n   = norm01(scaffold_depth)
+        first_n = norm01(first_ref_depth)
+        if first_n.shape != cur_n.shape:
+            first_n = cv2.resize(first_n, (cur_n.shape[1], cur_n.shape[0]),
+                                 interpolation=cv2.INTER_LINEAR)
+        depth_norm = ((0.5 * cur_n + 0.5 * first_n) * 255).astype(np.uint8)
+        print("    🔀 [Depth Blend] 與第一個 ref depth 50/50 混合送 ControlNet")
+    # （else 維持原本的 depth_norm 計算不動）
+
     control_image = Image.fromarray(
         cv2.cvtColor(np.clip(depth_norm, 0, 255).astype(np.uint8), cv2.COLOR_GRAY2RGB)
     )
@@ -156,7 +187,12 @@ def run_diffusion_texture_generation(img_path, mask_2d, scaffold_depth,
     mask_sd    = mask_pil.resize((sd_w, sd_h), Image.NEAREST)
     control_sd = control_image.resize((sd_w, sd_h), Image.LANCZOS)
 
-    prompt = "realistic background, seamless surface texture, consistent lighting, photorealistic"
+    prompt = (
+        "seamless empty background, perfectly matching surrounding textures, "
+        "continuous texture"
+        "continuous surface, clean and uncluttered space, empty scenery, "
+        "background only, highly detailed, photorealistic"
+    )
     negative_prompt = (
         "cardboard box, suitcase, luggage, bag, backpack, box, crate, "
         "bin, trash can, garbage can, transparent object, glass, ghost, "
@@ -166,6 +202,9 @@ def run_diffusion_texture_generation(img_path, mask_2d, scaffold_depth,
 
     # scale=0.25 (low)：scaffold depth 仍有誤差，low scale 讓 SD 自由發揮 2D prior
     # seed=42：所有 ref view 共用相同 initial noise → 紋理風格一致，無 ghosting
+
+
+
     generator = torch.Generator(device="cuda").manual_seed(42)
     print("    🎨 [單次生成] scale=0.25, seed=42...")
     result_image = pipe(
@@ -177,12 +216,31 @@ def run_diffusion_texture_generation(img_path, mask_2d, scaffold_depth,
         height=sd_h,
         width=sd_w,
         num_inference_steps=25,
-        controlnet_conditioning_scale=0.25,
-        guidance_scale=7.5,
+        controlnet_conditioning_scale=0.4,
+        guidance_scale=8.5,
         generator=generator,
     ).images[0].resize((W, H), Image.LANCZOS)
 
     return cv2.cvtColor(np.array(result_image), cv2.COLOR_RGB2BGR)
+
+def run_generative_rgb_inpaint(img_path, mask_2d):
+    kernel = np.ones((15, 15), np.uint8)
+    mask_dilated = cv2.dilate(mask_2d, kernel, iterations=1)
+
+    if lama_model is not None:
+        img_pil = Image.open(img_path).convert('RGB')
+        mask_pil = Image.fromarray(mask_dilated).convert('L')
+        result_pil = lama_model(img_pil, mask_pil)
+        inpainted_rgb = cv2.cvtColor(np.array(result_pil), cv2.COLOR_RGB2BGR)
+        
+        H, W = mask_2d.shape
+        if inpainted_rgb.shape[:2] != (H, W):
+            inpainted_rgb = cv2.resize(inpainted_rgb, (W, H), interpolation=cv2.INTER_LINEAR)
+    else:
+        img = cv2.imread(img_path)
+        inpainted_rgb = cv2.inpaint(img, mask_dilated, inpaintRadius=10, flags=cv2.INPAINT_TELEA)
+        
+    return inpainted_rgb
 
 
 # ==============================================================================
@@ -193,7 +251,7 @@ def generative_multi_ref_propagation(
     raw_depth_maps, all_cam_to_world_mat, intrinsics, 
     output_dir, ref_cache
 ):
-    print(f"\n[Gen-3D Prop] 啟動幾何優先多視角融合: Target V_{target_idx} <- Refs {ref_indices}")
+    print(f"\n[Gen-3D Prop] 啟動幾何優先多視角融合: Target V_{target_idx} <- Refs {ref_indices}", end="\r")
 
     target_img_path = image_paths[target_idx]
     target_img = cv2.imread(target_img_path)
@@ -222,6 +280,7 @@ def generative_multi_ref_propagation(
 
     boundary_mses = []
     first_ref_bgr = None   # 第 1 個 ref view 結果，供後續 ref 繼承
+    first_ref_depth = None
 
     target_pos = c2w_tgt[:3, 3]
     ref_distances = []
@@ -235,10 +294,10 @@ def generative_multi_ref_propagation(
 
     for ref_idx in sorted_ref_indices:
         if not np.any(remaining_hole_mask):
-            print(f"🎉 Target V_{target_idx} 的死角已被完美填滿！")
+            print(f"🎉 Target V_{target_idx} 的死角已被完美填滿！", end="\r")
             break
 
-        print(f"  -> 正在從 Ref V_{ref_idx} 擷取並映射 3D 補丁...")
+        print(f"  -> 正在從 Ref V_{ref_idx} 擷取並映射 3D 補丁...", end="\r")
 
         ref_img_path = image_paths[ref_idx]
         ref_mask_path = os.path.join(mask_dir, os.path.basename(ref_img_path))
@@ -254,14 +313,53 @@ def generative_multi_ref_propagation(
 
             scaffold_depth = extrapolate_3d_geometry(vggt_raw_depth, mask_ref, K_ref)
 
-            # 第 1 個 ref → 獨立生成建立風格基準；第 2、3 個 ref → 繼承第 1 個的結果
-            inpainted_rgb_ref = run_diffusion_texture_generation(
-                ref_img_path, mask_ref, scaffold_depth,
-                prev_inpainted_bgr=first_ref_bgr
-            )
+
+                # mask 區域內的 depth 值
+            mask_depths = scaffold_depth[mask_ref > 0]
+            mask_depths = mask_depths[~np.isnan(mask_depths) & (mask_depths > 0)]
+
+            if len(mask_depths) > 10:
+                depth_range = mask_depths.max() - mask_depths.min()
+                depth_std   = np.std(mask_depths)
+                relative_spread = depth_std / (depth_range + 1e-8)
+
+                # 額外檢查：小平面佔比必須超過 20%，才算真正跨兩平面
+                # 用 median 切兩組，取小的那組的佔比
+                median_d   = np.median(mask_depths)
+                n_lower    = (mask_depths < median_d).sum()
+                n_upper    = (mask_depths >= median_d).sum()
+                minor_ratio = min(n_lower, n_upper) / len(mask_depths)
+
+                mask_spans_two_planes = (
+                    has_plane2
+                    and (relative_spread > 0.2)
+                    and (minor_ratio > 0.3)    # 小平面至少佔 20%
+                )
+            else:
+                mask_spans_two_planes = False
+
+            print(f"    📊 relative_spread={relative_spread:.3f}  minor_ratio={minor_ratio:.3f}  spans_two={mask_spans_two_planes}")
+
+            if mask_spans_two_planes:
+
+                # 第 1 個 ref → 獨立生成建立風格基準；第 2、3 個 ref → 繼承第 1 個的結果
+                print("    🖌️ [Diffusion] 跨雙平面，使用 ControlNet-Depth 條件擴散生成紋理...")
+                inpainted_rgb_ref = run_diffusion_texture_generation(
+                    ref_img_path, mask_ref, scaffold_depth,
+                    prev_inpainted_bgr=first_ref_bgr,
+                    first_ref_depth=first_ref_depth
+                )
+
+            else:
+                print("    🖌️ [LaMa] 單平面，使用 LaMa 穩定填補...")
+                inpainted_rgb_ref = run_generative_rgb_inpaint(ref_img_path, mask_ref)
+
+
+
 
             if first_ref_bgr is None:
                 first_ref_bgr = inpainted_rgb_ref.copy()
+                first_ref_depth = scaffold_depth.copy()
                 print(f"    📌 V_{ref_idx} 建立風格基準，後續 ref 將繼承")
 
             ref_cache[ref_idx] = (inpainted_rgb_ref, scaffold_depth)
@@ -363,8 +461,8 @@ def generative_multi_ref_propagation(
     os.makedirs(output_dir, exist_ok=True)
     cv2.imwrite(str(output_dir / f"inpainted_{target_idx}.png"), final_canvas)
     
-    print(f"✅ V_{target_idx} 處理完成！")
-    print(f"   - 剩餘紅色死角面積: {red_area} 像素")
-    print(f"   - 最高邊界紋理撕裂誤差 (MSE): {final_boundary_mse:.2f}\n")
+    # print(f"✅ V_{target_idx} 處理完成！")
+    # print(f"   - 剩餘紅色死角面積: {red_area} 像素")
+    # print(f"   - 最高邊界紋理撕裂誤差 (MSE): {final_boundary_mse:.2f}\n")
     
     return red_area, final_boundary_mse
