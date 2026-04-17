@@ -708,7 +708,9 @@ def infer_vggt_and_reconstruct(
     )
     depth_tensor = predictions["depth"]
     depth_conf = predictions["depth_conf"]
-    
+
+    raw_depth_np = depth_tensor[0].detach().float().cpu().numpy().copy()
+
     depth_conf_np = depth_conf[0].detach().float().cpu().numpy()
     depth_mask = depth_conf_np >= depth_conf_thresh
     depth_filtered = depth_tensor[0].detach().float().cpu().numpy()
@@ -750,7 +752,7 @@ def infer_vggt_and_reconstruct(
     return (
         extrinsic_np, intrinsic_np, all_points, all_colors,
         all_cam_to_world_mat, inference_time_ms, depth_np,
-        depth_conf_np, dense_features_np
+        depth_conf_np, dense_features_np, raw_depth_np
     )
 
 

@@ -11,9 +11,9 @@ import cv2
 import numpy as np
 from pathlib import Path
 
-IMG_DIR  = Path("spinnerf-dataset/trash/images_4")
-MASK_DIR = Path("spinnerf-dataset/trash/images_4/label")
-OUT_DIR  = Path("masked_train_trash")
+IMG_DIR  = Path("spinnerf-dataset/1/images_4")
+MASK_DIR = Path("spinnerf-dataset/1/images_4/label")
+OUT_DIR  = Path("masked_train_1")
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 

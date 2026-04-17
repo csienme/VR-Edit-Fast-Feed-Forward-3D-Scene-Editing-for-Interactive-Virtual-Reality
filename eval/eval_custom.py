@@ -9,7 +9,7 @@ from scipy.spatial.transform import Rotation
 import cv2
 
 # PAUL MOD
-import generative_inpaint_module as generative_inpaint_module
+
 
 # Ensure project root is in sys.path for absolute imports like `vggt.*`
 ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
@@ -405,6 +405,40 @@ def main():
         # Update attention layer patch dimensions in the model
         model.update_patch_dimensions(patch_width, patch_height)
 
+        # ====================================================================
+        # 🚀 核心改裝：讀取 0/1 Mask Tensor 並傳給模型 (嚴格順序對應版)
+        # ====================================================================
+        inpaint_mask = None
+        if args.mask_path is not None and args.mask_path.exists():
+            print(f"🌀 讀取 3D Inpainting 遮罩...")
+            S_len, _, grid_h, grid_w = vgg_input.shape
+            
+            import re
+            def natural_sort_key(s):
+                return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', str(s))]
+            
+            mask_extensions = ('*.png', '*.jpg', '*.jpeg', '*.bmp')
+            mask_path_list = []
+            for ext in mask_extensions:
+                mask_path_list.extend(args.mask_path.glob(ext))
+                
+            mask_path_list = sorted(mask_path_list, key=natural_sort_key)
+
+            if len(mask_path_list) != len(image_paths):
+                raise ValueError(f"❌ 嚴重錯誤：圖片數量 ({len(image_paths)}) 與 Mask 數量 ({len(mask_path_list)}) 不對等！")
+
+            masks_tensor = torch.zeros((1, S_len, grid_h, grid_w), dtype=dtype, device='cuda')
+            
+            from PIL import Image
+            for i, (img_path, mask_path) in enumerate(zip(image_paths, mask_path_list)):
+                mask_img = Image.open(mask_path).convert('L')
+                mask_img = mask_img.resize((grid_w, grid_h), Image.NEAREST)
+                mask_np = np.array(mask_img) > 0 
+                masks_tensor[0, i] = torch.from_numpy(mask_np).to(dtype=dtype, device='cuda')
+                
+            inpaint_mask = masks_tensor
+            print(f"✅ {len(mask_path_list)} 張遮罩已按嚴格順序載入，Attention Bias 引擎啟動準備完成。")
+
         # Inference + Reconstruction
         print(f"🚀 Start inference and reconstruction...")
         (
@@ -414,11 +448,12 @@ def main():
             all_point_colors,
             all_cam_to_world_mat,
             inference_time_ms,
-            dense_depth_maps, # PAUL MOD add new return value for depth maps
-            x,
-            y
+            dense_depth_maps, 
+            depth_conf_np,     # 🟢 修正：對應 eval_utils 中返回的 9 個變數
+            dense_features_np,
+            raw_depth_maps      # 🟢 新增：接住未過濾的連續深度鷹架 (給 Diffusion 結合用) # 🟢 修正：對應 eval_utils 中返回的 9 個變數
         ) = infer_vggt_and_reconstruct(
-            model, vgg_input, dtype, args.depth_conf_thresh, image_paths
+            model, vgg_input, dtype, args.depth_conf_thresh, image_paths, inpaint_mask=inpaint_mask
         )
         print(f"⏱️  Inference time: {inference_time_ms:.2f}ms")
 
@@ -468,7 +503,7 @@ def main():
                     target_indices_to_test = list(range(ALL_FRAMES))
                 else:
                     # 你想測試/修補的取樣 Target 視角
-                    target_indices_to_test = [5, 10, 15, 20, 30, 40, 50, 55] 
+                    target_indices_to_test = input('請輸入想測試/修補的 Target 視角 Index（逗號分隔，例如 0,27,56）: ') 
                 
                 
  # 參數設定
@@ -500,7 +535,7 @@ def main():
                             target_idx=tgt_idx, 
                             image_paths=image_paths, 
                             mask_dir=args.mask_path, 
-                            dense_depth_maps=dense_depth_maps, 
+                            raw_depth_maps=raw_depth_maps, # 🟢 新的，無洞的連續鷹架
                             all_cam_to_world_mat=all_cam_to_world_mat, 
                             intrinsics=intrinsic_np, 
                             output_dir=output_img_dir,
