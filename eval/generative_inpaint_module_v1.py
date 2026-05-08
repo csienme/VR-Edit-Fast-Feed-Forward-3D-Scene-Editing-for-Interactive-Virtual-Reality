@@ -124,49 +124,6 @@ except ImportError:
 
 # ==============================================================================
 # [模組 2] 🎨 幾何條件約束的紋理生成 (Depth-Conditioned Texture Hallucination)
-
-# ==============================================================================
-# [Helper] 🧹 ControlNet 餵入前的 depth 清理
-#
-# 目的：scaffold_depth 在 mask 區內常常殘留物體輪廓（VGGT 推算 + RANSAC 補面
-# 後仍有 box-shaped 突起），這個輪廓會被 ControlNet-Depth 解讀成
-# 「這裡應該有一個物體」，引導 SD 畫出箱子、文件夾等幻覺物件。
-#
-# 策略：根據 mask 內 depth 分佈決定處理方式。注意此函數只處理 ControlNet 的
-# 輸入，原本的 scaffold_depth 保持不變（後續 3D warping 仍用原始版本）。
-# ==============================================================================
-def clean_scaffold_depth_for_controlnet(scaffold_depth, mask_2d):
-    cleaned = scaffold_depth.copy()
-    mask_bool = mask_2d > 0
-    valid_outside = ~mask_bool & (scaffold_depth > 0) & ~np.isnan(scaffold_depth)
-
-    if not valid_outside.any():
-        return cleaned
-
-    mask_depths = scaffold_depth[mask_bool]
-    mask_depths = mask_depths[~np.isnan(mask_depths) & (mask_depths > 0)]
-    if len(mask_depths) < 10:
-        return cleaned
-
-    depth_range     = mask_depths.max() - mask_depths.min()
-    relative_spread = np.std(mask_depths) / (depth_range + 1e-8)
-    boundary_mean   = scaffold_depth[valid_outside].mean()
-
-    if relative_spread < 0.2:
-        # 單一平面：mask 區直接抹平為邊界 mean（消除物體輪廓）
-        cleaned[mask_bool] = boundary_mean
-        print(f"    🧹 [Depth Clean] 單一平面，mask 區抹平為 {boundary_mean:.3f}")
-    else:
-        # 多平面：保留結構但 clip 掉 5%/95% 兩端的離群值（移除尖刺輪廓）
-        d_lo = np.percentile(mask_depths, 5)
-        d_hi = np.percentile(mask_depths, 95)
-        clipped = np.clip(scaffold_depth, d_lo, d_hi)
-        cleaned[mask_bool] = clipped[mask_bool]
-        print(f"    🧹 [Depth Clean] 多平面，mask 區 clip 至 [{d_lo:.3f}, {d_hi:.3f}]")
-
-    return cleaned
-
-
 # ==============================================================================
 def run_diffusion_texture_generation(img_path, mask_2d, scaffold_depth,
                                      prev_inpainted_bgr=None,
@@ -197,33 +154,27 @@ def run_diffusion_texture_generation(img_path, mask_2d, scaffold_depth,
     img_pil = Image.fromarray(img_np)
 
     # ── depth control ───────────────────────────────────────────────
-    # 先清理 scaffold depth：移除 mask 內物體輪廓殘留，避免 ControlNet
-    # 把這些殘留輪廓誤判為「這裡有物體」
-    sd_for_control = clean_scaffold_depth_for_controlnet(scaffold_depth, mask_2d)
-
-    # 基本 MiDaS 視差格式（後續可能被 first_ref blend 覆蓋）
-    valid_depth = sd_for_control[sd_for_control > 0]
+    valid_depth = scaffold_depth[scaffold_depth > 0]
     if len(valid_depth) == 0:
         valid_depth = np.array([1.0])
     min_d, max_d = valid_depth.min(), valid_depth.max()
-    depth_norm   = 255.0 * (max_d - sd_for_control) / (max_d - min_d + 1e-5)
+    depth_norm   = 255.0 * (max_d - scaffold_depth) / (max_d - min_d + 1e-5)
 
-    # 若提供 first_ref_depth，與當前 cleaned depth 各 50% 混合送 ControlNet
-    # （first_ref_depth 也先清理一次，保持一致性）
+
+    # 若提供 first_ref_depth，與當前 depth 各 50% 混合送 ControlNet
     if first_ref_depth is not None:
-        first_for_control = clean_scaffold_depth_for_controlnet(first_ref_depth, mask_2d)
-
         def norm01(d):
             v = d[(d > 0) & ~np.isnan(d)]
             if len(v) == 0: return np.zeros_like(d, dtype=np.float32)
             return np.clip((d - v.min()) / (v.max() - v.min() + 1e-8), 0, 1).astype(np.float32)
-        cur_n   = norm01(sd_for_control)
-        first_n = norm01(first_for_control)
+        cur_n   = norm01(scaffold_depth)
+        first_n = norm01(first_ref_depth)
         if first_n.shape != cur_n.shape:
             first_n = cv2.resize(first_n, (cur_n.shape[1], cur_n.shape[0]),
                                  interpolation=cv2.INTER_LINEAR)
         depth_norm = ((0.5 * cur_n + 0.5 * first_n) * 255).astype(np.uint8)
         print("    🔀 [Depth Blend] 與第一個 ref depth 50/50 混合送 ControlNet")
+    # （else 維持原本的 depth_norm 計算不動）
 
     control_image = Image.fromarray(
         cv2.cvtColor(np.clip(depth_norm, 0, 255).astype(np.uint8), cv2.COLOR_GRAY2RGB)
@@ -265,7 +216,7 @@ def run_diffusion_texture_generation(img_path, mask_2d, scaffold_depth,
         height=sd_h,
         width=sd_w,
         num_inference_steps=25,
-        controlnet_conditioning_scale=0.9,
+        controlnet_conditioning_scale=0.4,
         guidance_scale=8.5,
         generator=generator,
     ).images[0].resize((W, H), Image.LANCZOS)
@@ -296,10 +247,9 @@ def run_generative_rgb_inpaint(img_path, mask_2d):
 # [模組 3] 🚀 多參考視角前向融合與動態評估 (Geometry-First 終極版)
 # ==============================================================================
 def generative_multi_ref_propagation(
-    ref_indices, target_idx, image_paths, mask_dir,
-    raw_depth_maps, all_cam_to_world_mat, intrinsics,
-    output_dir, ref_cache,
-    mask_paths=None,   # 若提供（sorted list），以 index 對應 mask；否則沿用舊的 basename 對應
+    ref_indices, target_idx, image_paths, mask_dir, 
+    raw_depth_maps, all_cam_to_world_mat, intrinsics, 
+    output_dir, ref_cache
 ):
     print(f"\n[Gen-3D Prop] 啟動幾何優先多視角融合: Target V_{target_idx} <- Refs {ref_indices}", end="\r")
 
@@ -307,14 +257,8 @@ def generative_multi_ref_propagation(
     target_img = cv2.imread(target_img_path)
     H, W = target_img.shape[:2]
     
-    # 優先用 index 對應（mask 檔名和 image 檔名可以不同，只保證順序一致）
-    if mask_paths is not None:
-        target_mask_path = str(mask_paths[target_idx])
-    else:
-        target_mask_path = os.path.join(mask_dir, os.path.basename(target_img_path))
+    target_mask_path = os.path.join(mask_dir, os.path.basename(target_img_path))
     mask_tgt = cv2.imread(target_mask_path, cv2.IMREAD_GRAYSCALE)
-    if mask_tgt is None:
-        raise FileNotFoundError(f"❌ 讀不到 target mask: {target_mask_path}")
     mask_tgt = cv2.resize(mask_tgt, (W, H), interpolation=cv2.INTER_NEAREST)
     mask_tgt = (mask_tgt > 0).astype(np.uint8) * 255 # 🟢 確保 Target Mask 是 255
 
@@ -356,14 +300,8 @@ def generative_multi_ref_propagation(
         print(f"  -> 正在從 Ref V_{ref_idx} 擷取並映射 3D 補丁...", end="\r")
 
         ref_img_path = image_paths[ref_idx]
-        if mask_paths is not None:
-            ref_mask_path = str(mask_paths[ref_idx])
-        else:
-            ref_mask_path = os.path.join(mask_dir, os.path.basename(ref_img_path))
-        _ref_mask_raw = cv2.imread(ref_mask_path, cv2.IMREAD_GRAYSCALE)
-        if _ref_mask_raw is None:
-            raise FileNotFoundError(f"❌ 讀不到 ref mask: {ref_mask_path}")
-        mask_ref = cv2.resize(_ref_mask_raw, (W, H), interpolation=cv2.INTER_NEAREST)
+        ref_mask_path = os.path.join(mask_dir, os.path.basename(ref_img_path))
+        mask_ref = cv2.resize(cv2.imread(ref_mask_path, cv2.IMREAD_GRAYSCALE), (W, H), interpolation=cv2.INTER_NEAREST)
         mask_ref = (mask_ref > 0).astype(np.uint8) * 255 # 🟢 確保 Ref Mask 是 255
         
         if ref_idx not in ref_cache:
@@ -413,15 +351,8 @@ def generative_multi_ref_propagation(
                 )
 
             else:
-                # print("    🖌️ [LaMa] 單平面，使用 LaMa 穩定填補...")
-                # inpainted_rgb_ref = run_generative_rgb_inpaint(ref_img_path, mask_ref)
-                                # 第 1 個 ref → 獨立生成建立風格基準；第 2、3 個 ref → 繼承第 1 個的結果
-                print("    🖌️ [Diffusion] 跨雙平面，使用 ControlNet-Depth 條件擴散生成紋理...")
-                inpainted_rgb_ref = run_diffusion_texture_generation(
-                    ref_img_path, mask_ref, scaffold_depth,
-                    prev_inpainted_bgr=first_ref_bgr,
-                    first_ref_depth=first_ref_depth
-                )
+                print("    🖌️ [LaMa] 單平面，使用 LaMa 穩定填補...")
+                inpainted_rgb_ref = run_generative_rgb_inpaint(ref_img_path, mask_ref)
 
 
 

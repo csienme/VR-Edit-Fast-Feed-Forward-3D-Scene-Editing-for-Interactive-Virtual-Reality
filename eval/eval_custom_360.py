@@ -410,122 +410,41 @@ def main():
                 output_img_dir = output_scene_dir / f"{args.exp_name}"
 
                 # 引用我們剛剛建立的新模組
-                from eval.generative_inpaint_module import generative_multi_ref_propagation
+                from eval.generative_inpaint_module_360 import generative_multi_ref_propagation
 
                 # =================================================================
-                # 🚀 終極測試：動態死角貪婪覆蓋 (Greedy Disocclusion Coverage)
+                # 3DGIC 風格 Inpainting：每個 target 獨立用所有其他 view 當 donor
+                # 不再需要 greedy ref 升格，因為 mask refinement 是 closed-form
                 # =================================================================
-                # 定義全局 LaMa 快取字典，防止 GPU 運算爆炸
                 global_ref_cache = {}
-                # 跨 target 共享的 first ref 狀態（History Anchor）
-                # 用一個獨立 dict 而非塞進 global_ref_cache，避免污染既有的 ref_idx 迭代邏輯
-                global_ref_cache["__history_anchor__"] = {
-                    "first_ref_idx":   None,
-                    "first_ref_bgr":   None,
-                    "first_ref_depth": None,
-                    "first_ref_K":     None,
-                }
-                # 1. 創世：利用上一篇寫好的函數，選出空間正中心的相機作為最初的 Ref_1
-                best_center_idx = find_best_center_reference_view(all_cam_to_world_mat)
-                active_ref_indices = [best_center_idx]
-                
 
-                ALL_FRAMES = len(image_paths)  # 與實際處理的圖數一致，避免 n_skip 後 index 越界
-
-
+                ALL_FRAMES = len(image_paths)
                 if args.generate == "all frame":
-                    # 如果指定了 --generate all frame，渲染所有 frame
                     print("generate all frame...")
                     target_indices_to_test = list(range(ALL_FRAMES))
                 else:
-                    # 你想測試/修補的取樣 Target 視角
-                    target_indices_to_test = input('請輸入想測試/修補的 Target 視角 Index（逗號分隔，例如 0,27,56）: ') 
-                
-                
- # 參數設定
-                TOLERANCE_AREA = 100       # 容忍的最大紅斑面積 (像素)
-                MSE_DEADZONE = 1200        # MSE 死區：小於 1200 的誤差視為正常，不予懲罰
-                MAX_REF_VIEWS = 4          # 💥 強制硬上限：最多只允許 4 個 Reference View
-                
-                round_count = 1
-                
-                while True:
-                    print(f"\n" + "="*60)
-                    print(f"🌍 [貪婪迴圈 第 {round_count} 回合] 目前的神壇陣容: {active_ref_indices}")
-                    print("="*60)
-                    
-                    # 防呆機制：如果 Ref 數量已經達到我們設定的極限，強制停止！
-                    if len(active_ref_indices) >= MAX_REF_VIEWS:
-                        print(f"🛑 達到最大 Reference 視角數量上限 ({MAX_REF_VIEWS})，強制終止貪婪迴圈以保護 3D 一致性！")
-                        break
-                        
-                    max_bad_score = 0
-                    worst_target_idx = -1
-                    
-                    for tgt_idx in target_indices_to_test:
-                        if tgt_idx in active_ref_indices:
-                            continue 
-                            
-                        red_area, boundary_mse = generative_multi_ref_propagation(
-                            ref_indices=active_ref_indices,
-                            target_idx=tgt_idx,
-                            image_paths=image_paths,
-                            mask_dir=args.mask_path,
-                            raw_depth_maps=raw_depth_maps,
-                            all_cam_to_world_mat=all_cam_to_world_mat,
-                            intrinsics=intrinsic_np,
-                            output_dir=output_img_dir,
-                            ref_cache=global_ref_cache,
-                            mask_paths=mask_path_list if mask_path_list else None,  # index-based mask 對應
-                        )
-                        
-                        # 💥 核心修正：計算綜合災情分數 (導入 Deadzone 機制)
-                        bad_score = red_area
-                        
-                        # 只有當 MSE 飆破死區 (例如嚴重拉扯)，才將超出死區的部分加入懲罰分數
-                        if boundary_mse > MSE_DEADZONE:
-                            penalty = (boundary_mse - MSE_DEADZONE) * 0.5
-                            bad_score += penalty
-                            print(f"    ⚠️ 偵測到嚴重紋理撕裂 (MSE: {boundary_mse:.1f})，附加懲罰分數: {penalty:.1f}")
-                        
-                        if bad_score > max_bad_score:
-                            max_bad_score = bad_score
-                            worst_target_idx = tgt_idx
-                            
-                    print(f"⚖️ 本回合最慘 Target: V_{worst_target_idx} (綜合災情分數: {max_bad_score:.2f})")
-                    
-                    # 判斷是否大獲全勝 (紅斑夠小，且沒有嚴重的紋理撕裂)
-                    if max_bad_score <= TOLERANCE_AREA:
-                        print(f"🏆 貪婪覆蓋大獲全勝！所有死角與嚴重紋理撕裂已被消滅 (耗費 {len(active_ref_indices)} 個 Refs)。")
-                        break
-                        
-                    print(f"👑 系統決定拔擢最慘的 V_{worst_target_idx} 成為新的 Reference View！")
-                    active_ref_indices.append(worst_target_idx)
-                    round_count += 1
+                    target_indices_to_test = input(
+                        '請輸入想測試/修補的 Target 視角 Index（逗號分隔，例如 0,27,56）: '
+                    )
+                    target_indices_to_test = [int(x) for x in target_indices_to_test.split(',')]
 
-                # =================================================================
-                # 💥 終極修復：將完美的 Reference Views 寫出覆蓋！
-                # =================================================================
-                print("\n" + "="*60)
-                print("💾 [最終結算] 正在將神壇上的完美 Reference Views 寫入硬碟...")
-                
-                for ref_idx in active_ref_indices:
-                    # 這些 Ref 肯定已經在快取中（因為剛剛已經用來拯救其他視角了）
-                    # 跳過特殊 key（History Anchor 用，非真實 ref_idx）
-                    if isinstance(ref_idx, str) and ref_idx.startswith("__"):
-                        continue
-                    if ref_idx in global_ref_cache:
-                        # 從快取中拿出 LaMa 剛剛畫好的「完美 2D 修補 RGB」
-                        perfect_rgb, _ = global_ref_cache[ref_idx]
-                        
-                        # 定義儲存路徑
-                        save_path = output_img_dir/ f"inpainted_{ref_idx}.png"
-                        
-                        # 強制覆寫！(如果是 27 號就會無中生有補齊，56和0號則是把瑕疵圖蓋掉)
-                        cv2.imwrite(str(save_path), perfect_rgb)
-                        print(f"   ✅ 已完美覆寫 Reference V_{ref_idx}")
-                    else:
-                        print(f"   ⚠️ 警告：V_{ref_idx} 不在快取中 (預期外行為)")
+                print(f"\n🚀 [3DGIC] 對 {len(target_indices_to_test)} 個 target 執行 inpainting...")
+                for tgt_idx in target_indices_to_test:
+                    red_area, _ = generative_multi_ref_propagation(
+                        ref_indices=[],   # 不再使用，但保留參數相容
+                        target_idx=tgt_idx,
+                        image_paths=image_paths,
+                        mask_dir=args.mask_path,
+                        raw_depth_maps=raw_depth_maps,
+                        all_cam_to_world_mat=all_cam_to_world_mat,
+                        intrinsics=intrinsic_np,
+                        output_dir=output_img_dir,
+                        ref_cache=global_ref_cache,
+                        mask_paths=mask_path_list if mask_path_list else None,
+                    )
+                    print(f"   ✅ V_{tgt_idx} 完成 (refined hole={red_area} px)")
+
+                print(f"\n🏆 全部 {len(target_indices_to_test)} 個 target 處理完成")
                         
                 print("="*60 + "\n")
 

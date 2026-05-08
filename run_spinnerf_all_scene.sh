@@ -21,12 +21,11 @@ for SCENE in "${SCENES[@]}"; do
     # ── Step 1: VGGT inpainting（只取後60張）──────────────────────
     echo "[${SCENE}] Step 1: VGGT inpainting..."
     python eval/eval_custom.py \
-        --data_path spinnerf-dataset/${SCENE}/images_4 \
-        --mask_path spinnerf-dataset/${SCENE}/images_4/label \
+        --data_path ../spinnerf-dataset/${SCENE}/images_4 \
+        --mask_path ../spinnerf-dataset/${SCENE}/images_4/label \
         --enable_gen_3d_prop \
         --generate "all frame" \
         --exp_name "${SCENE}" \
-        --n_skip 40
 
     # ── Step 2: 合併前40張GT + 後60張inpainted ────────────────────
     echo "[${SCENE}] Step 2: Merging GT + inpainted images..."
@@ -70,7 +69,7 @@ for SCENE in "${SCENES[@]}"; do
         --gt_img_dir       spinnerf-dataset/${SCENE}/images_4 \
         --render_img_dir   renders_${SCENE} \
         --mask_dir spinnerf-dataset/${SCENE}/images_4/test_label \
-        --output_dir       ./metric_logs
+        --output_dir       ./metric_logs_test
 
     echo "✅ 場景 ${SCENE} 完成！"
 done
