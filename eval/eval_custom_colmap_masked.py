@@ -278,6 +278,14 @@ def parse_args():
         action="store_true",
         help="Save the output images",
     )
+
+
+    parser.add_argument(
+        "--n_skip",
+        type=int,
+        default=0,
+        help="跳過前 N 張圖（字母排序後），只處理剩餘圖。例如 --n_skip 40 在100張目錄中只取後60張。",
+    )
     return parser.parse_args()
 
 
@@ -299,7 +307,10 @@ def main():
         print(f"❌ images directory not found: {images_dir}")
         return
 
-    all_paths = glob.glob(os.path.join(str(images_dir), "*"))
+    all_paths = [
+    p for p in glob.glob(os.path.join(str(images_dir), "*"))
+    if os.path.isfile(p)
+]
     inpainted_paths = sorted(
         [p for p in all_paths if os.path.basename(p).startswith("inpainted_")],
         key=lambda p: int(os.path.basename(p).rsplit(".", 1)[0].split("_")[-1])
@@ -308,6 +319,9 @@ def main():
         [p for p in all_paths if not os.path.basename(p).startswith("inpainted_")]
     )
     image_path_list = inpainted_paths + other_paths
+
+    image_path_list = image_path_list[args.n_skip:]
+
     if len(image_path_list) == 0:
         print(f"❌ No images found in {images_dir}")
         return

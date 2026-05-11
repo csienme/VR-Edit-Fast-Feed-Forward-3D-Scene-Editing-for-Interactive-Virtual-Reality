@@ -202,9 +202,19 @@ def main():
     parser.add_argument(
         "--n_skip",
         type=int,
-        default=40,
-        help="跳過前 N 張圖（字母排序後），只處理剩餘圖。例如 --n_skip 40 在100張目錄中只取後60張。",
-    )
+        default=0,
+        help="跳過前 N 張圖（字母排序後），只處理剩餘圖。例如 --n_skip 40 在100張目錄中只取後60張。"
+    )#mask_path 不適用 n_skip喔！！！！！！！！！！！！！！！！
+
+    parser.add_argument("--inpaint_method", default="cv2", choices=["cv2","lama","sd"])
+
+
+    parser.add_argument(
+    "--output_root",
+    type=Path,
+    default=None,
+    help="Clean output root directory",
+)
     #=====================================================================
     #PAUL_MOD END
 
@@ -242,9 +252,30 @@ def main():
     else:
         print(f"🏃 Inference only, no evaluation")
 
-    # Create output directory
-    args.output_path.mkdir(parents=True, exist_ok=True)
-    output_scene_dir = args.output_path / f"custom_dataset_{args.data_path}"
+    # ==================================================
+    # Clean output directory structure
+    # ==================================================
+
+    if args.output_root is not None:
+        output_scene_dir = args.output_root
+    else:
+        dataset_name = args.data_path.parent.parent.name
+        scene_name = args.exp_name if args.exp_name else args.data_path.parent.name
+
+        output_scene_dir = (
+            args.output_path
+            / dataset_name
+            / scene_name
+        )
+
+    output_scene_dir.mkdir(parents=True, exist_ok=True)
+
+    # 子資料夾
+    inpainted_dir = output_scene_dir / "inpainted"
+    deadmask_dir = output_scene_dir / "deadmasks"
+
+    inpainted_dir.mkdir(parents=True, exist_ok=True)
+    deadmask_dir.mkdir(parents=True, exist_ok=True)
 
     # Check if already processed
     if (output_scene_dir / "metrics.json").exists() and args.enable_evaluation:
@@ -346,7 +377,7 @@ def main():
             def natural_sort_key(s):
                 return [int(text) if text.isdigit() else text.lower() for text in re.split('([0-9]+)', str(s))]
             
-            mask_extensions = ('*.png', '*.jpg', '*.jpeg', '*.bmp')
+            mask_extensions = ('*.png', '*.jpg', '*.jpeg', '*.bmp','*.JPG')
             mask_path_list = []
             for ext in mask_extensions:
                 mask_path_list.extend(args.mask_path.glob(ext))
@@ -407,7 +438,7 @@ def main():
                 
             
 
-                output_img_dir = output_scene_dir / f"{args.exp_name}"
+                output_img_dir = inpainted_dir
 
                 # 引用我們剛剛建立的新模組
                 from eval.generative_inpaint_module_360 import generative_multi_ref_propagation
@@ -417,6 +448,12 @@ def main():
                 # 不再需要 greedy ref 升格，因為 mask refinement 是 closed-form
                 # =================================================================
                 global_ref_cache = {}
+                from eval.dead_zone_inpainter import build_inpainter
+                global_ref_cache["_inpainter"] = build_inpainter(args.inpaint_method)
+                global_ref_cache["_src_dilation_px"] = 11   # Fix 1: source mask 膨脹
+                global_ref_cache["_tgt_dilation_px"] = 5   # Fix 2: target mask 膨脹
+                global_ref_cache["_use_poisson"]     = False  # Fix 4: Poisson 光度收尾
+
 
                 ALL_FRAMES = len(image_paths)
                 if args.generate == "all frame":
@@ -461,144 +498,6 @@ def main():
             return
 
         # print(f"✅ Inference done, obtained {len(all_world_points)} point sets")
-
-        # Evaluation and saving
-        if args.enable_evaluation:
-            print(f"📊 Start evaluation...")
-            gt_ply_dir = args.data_path / "gt_ply"
-            metrics = evaluate_scene_and_save(
-                "custom_dataset",
-                c2ws,
-                first_gt_pose,
-                frame_ids,
-                all_cam_to_world_mat,
-                all_world_points,
-                output_scene_dir,
-                gt_ply_dir,
-                args.chamfer_max_dist,
-                inference_time_ms,
-                args.plot,
-            )
-            if metrics is not None:
-                print("📈 Evaluation results:")
-                for key, value in metrics.items():
-                    if key in [
-                        "chamfer_distance",
-                        "ate",
-                        "are",
-                        "rpe_rot",
-                        "rpe_trans",
-                        "inference_time_ms",
-                    ]:
-                        print(f"  {key}: {float(value):.4f}")
-
-            # Also visualize predicted poses in evaluation branch
-            # if args.plot:
-            #     visualize_predicted_poses(
-            #         all_cam_to_world_mat, frame_ids, output_scene_dir, "custom_dataset"
-            #     )
-        else:
-            # Save reconstruction only, no evaluation
-            print(f"💾 Saving reconstruction...")
-            output_scene_dir.mkdir(parents=True, exist_ok=True)
-
-            # Save camera poses
-            poses_output_path = output_scene_dir / "estimated_poses.txt"
-            with open(poses_output_path, "w") as f:
-                for i, pose in enumerate(all_cam_to_world_mat):
-                    f.write(f"# Frame {frame_ids[i]}\n")
-                    for row in pose:
-                        f.write(" ".join(map(str, row)) + "\n")
-                    f.write("\n")
-
-            # Save point cloud
-            if all_world_points:
-                points_output_path = output_scene_dir / "reconstructed_points.ply"
-
-                # Merge all frames' point clouds and colors
-                try:
-                    merged_point_cloud = np.vstack(all_world_points)
-                    merged_colors = (
-                        np.vstack(all_point_colors).astype(np.uint8)
-                        if all_point_colors is not None and len(all_point_colors) > 0
-                        else None
-                    )
-                    print(
-                        f"📊 Merged point clouds: {len(all_world_points)} frames, total {len(merged_point_cloud)} points"
-                    )
-
-                    # If too many points, randomly sample 100000 points
-                    max_points = 100000
-                    if len(merged_point_cloud) > max_points:
-                        print(
-                            f"🔽 Too many points, randomly sampling {max_points} points..."
-                        )
-                        # Randomly choose indices
-                        indices = np.random.choice(
-                            len(merged_point_cloud), size=max_points, replace=False
-                        )
-                        merged_point_cloud = merged_point_cloud[indices]
-                        if merged_colors is not None:
-                            merged_colors = merged_colors[indices]
-                        print(
-                            f"✅ Sampling done, kept {len(merged_point_cloud)} points"
-                        )
-
-                    # Save as PLY (with color)
-                    with open(points_output_path, "w") as f:
-                        f.write("ply\n")
-                        f.write("format ascii 1.0\n")
-                        f.write(f"element vertex {len(merged_point_cloud)}\n")
-                        f.write("property float x\n")
-                        f.write("property float y\n")
-                        f.write("property float z\n")
-                        if merged_colors is not None:
-                            f.write("property uchar red\n")
-                            f.write("property uchar green\n")
-                            f.write("property uchar blue\n")
-                        f.write("end_header\n")
-                        if merged_colors is None:
-                            for point in merged_point_cloud:
-                                if not (np.isnan(point).any() or np.isinf(point).any()):
-                                    f.write(
-                                        f"{point[0]:.6f} {point[1]:.6f} {point[2]:.6f}\n"
-                                    )
-                        else:
-                            for point, color in zip(merged_point_cloud, merged_colors):
-                                # Check point validity
-                                if not (np.isnan(point).any() or np.isinf(point).any()):
-                                    r = int(np.clip(color[0], 0, 255))
-                                    g = int(np.clip(color[1], 0, 255))
-                                    b = int(np.clip(color[2], 0, 255))
-                                    f.write(
-                                        f"{point[0]:.6f} {point[1]:.6f} {point[2]:.6f} {r} {g} {b}\n"
-                                    )
-
-                    print(f"💾 Point cloud saved to: {points_output_path}")
-
-                except Exception as e:
-                    print(f"⚠️  Error saving point cloud: {e}")
-                    # If merge fails, try to log per-frame info
-                    print(f"🔍 Point cloud debug info:")
-                    for i, frame_points in enumerate(all_world_points):
-                        print(
-                            f"  Frame {i}: {frame_points.shape if hasattr(frame_points, 'shape') else type(frame_points)}"
-                        )
-                        if (
-                            hasattr(frame_points, "shape")
-                            and len(frame_points.shape) >= 2
-                        ):
-                            print(
-                                f"    Shape: {frame_points.shape}, Dtype: {frame_points.dtype}"
-                            )
-                            if frame_points.shape[0] > 0:
-                                print(
-                                    f"    Range: x[{np.min(frame_points[:, 0]):.3f}, {np.max(frame_points[:, 0]):.3f}] "
-                                    f"y[{np.min(frame_points[:, 1]):.3f}, {np.max(frame_points[:, 1]):.3f}] "
-                                    f"z[{np.min(frame_points[:, 2]):.3f}, {np.max(frame_points[:, 2]):.3f}]"
-                                )
-
-            print(f"📁 Results saved to: {output_scene_dir}")
 
 
         print(f"🎉 Done!")

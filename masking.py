@@ -10,11 +10,11 @@ import os
 import cv2
 import numpy as np
 from pathlib import Path
-scene = "book"
+scene = "bear"
 
 
-IMG_DIR  = Path(f"spinnerf-dataset/{scene}/images_4")
-MASK_DIR = Path(f"spinnerf-dataset/{scene}/images_4/label")
+IMG_DIR  = Path(f"/home/robot-4090-3/paul/bear/input")
+MASK_DIR = Path(f"/home/robot-4090-3/paul/bear/target_object_mask")
 OUT_DIR  = Path(f"masked_train_{scene}")
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -31,11 +31,10 @@ mask_files = sorted([
 ])
 
 # 前40張是GT（無物體），後60張是有物體的 train frames
-train_imgs  = img_files[40:]   # 後60張
+train_imgs  = img_files   # 後60張
 train_masks = mask_files       # label/ 下剛好對應這60張
 
-assert len(train_imgs) == 60,  f"預期60張 train image，實際 {len(train_imgs)} 張"
-assert len(train_masks) == 60, f"預期60張 mask，實際 {len(train_masks)} 張"
+assert len(train_imgs) == len(train_masks),  f"實際image{len(train_imgs)} 不同於mask數{len(train_masks)}"
 
 print(f"Image dir : {IMG_DIR}")
 print(f"Mask dir  : {MASK_DIR}")

@@ -428,7 +428,7 @@ def get_vgg_input_imgs(images: np.ndarray):
 
 def get_sorted_image_paths(images_dir):
     image_paths = []
-    for ext in ["*.jpg", "*.png", "*.jpeg"]:
+    for ext in ["*.jpg", "*.png", "*.jpeg","*.JPG"]:
         image_paths.extend(sorted(images_dir.glob(ext)))
     # image_paths.sort(key=lambda x: int(x.stem))
     return image_paths
