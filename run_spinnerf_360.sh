@@ -21,9 +21,8 @@ DATASET_ROOT="../spinnerf-dataset"
 DATASET_NAME="$(basename "${DATASET_ROOT}")"
 OUTPUT_ROOT="./eval_results_custom"
 MERGED_ROOT="./merged_data"
-PURIFY_HYBRID_ROOT="./purify_hybrid"
-PURIFY_ROOT="./purify"
-RENDER_ROOT="./renders"
+PURIFY_BASE_ROOT="./purify_output"
+RENDER_BASE_ROOT="./render_output"
 METRIC_ROOT="./metric_logs_test"
 
 if [ -n "$SCENE" ]; then
@@ -39,9 +38,12 @@ for SCENE in "${SCENES[@]}"; do
     INPAINTED_DIR="${OUTPUT_ROOT}/${DATASET_NAME}/${SCENE}/inpainted"
     DEADMASK_DIR="${OUTPUT_ROOT}/${DATASET_NAME}/${SCENE}/deadmasks"
     MERGED_DIR="${MERGED_ROOT}/${SCENE}_images"
-    PURIFY_HYBRID_DIR="${PURIFY_HYBRID_ROOT}_${SCENE}"
-    PURIFY_DIR="${PURIFY_ROOT}_${SCENE}"
-    RENDER_DIR="${RENDER_ROOT}_${SCENE}"
+
+    PURIFY_SCENE_ROOT="${PURIFY_BASE_ROOT}/${SCENE}"
+    PURIFY_HYBRID_DIR="${PURIFY_SCENE_ROOT}/purify_hybrid"
+    PURIFY_DIR="${PURIFY_SCENE_ROOT}/purify"
+
+    RENDER_DIR="${RENDER_BASE_ROOT}/${SCENE}"
 
     echo ""
     echo "============================================================"
@@ -75,8 +77,7 @@ for SCENE in "${SCENES[@]}"; do
     echo "[${SCENE}] Step 3: Building nvs_pose COLMAP (100 frames)..."
     python eval/eval_custom_colmap_masked.py \
         --data_path "${MERGED_DIR}" \
-        --output_path "${PURIFY_HYBRID_DIR}" \
-        
+        --output_path "${PURIFY_HYBRID_DIR}"
 
     # ── Step 4: 用純 inpainted 圖建立 COLMAP ─────────────────────
     echo ""

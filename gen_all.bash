@@ -1,1 +1,0 @@
-python eval/eval_custom.py     --data_path spinnerf-dataset/book/images_4    --mask_path spinnerf-dataset/book/images_4/label     --enable_gen_3d_prop --generate "all frame" --exp_name "book" --n_skip 40 

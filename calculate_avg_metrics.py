@@ -1,9 +1,6 @@
 import os
 
 def parse_metrics_from_file(file_path):
-    """
-    從 metrics.txt 檔案中提取所有 8 項指標的數值。
-    """
     metrics = {
         "FID": None,
         "LPIPS": None,
@@ -14,24 +11,30 @@ def parse_metrics_from_file(file_path):
         "m-PSNR": None,
         "m-SSIM": None,
     }
+
     try:
         with open(file_path, "r", encoding="utf-8") as f:
-            lines = f.readlines()
-        
-        # 提取指標數值
-        for line in lines:
-            for key in metrics.keys():
-                if f"► {key}" in line:
-                    metrics[key] = float(line.split(":")[1].strip())
+            for line in f:
+                line = line.strip()
+
+                for key in metrics.keys():
+                    # 精準匹配：開頭 + 冒號格式
+                    if line.startswith(key):
+                        try:
+                            value = float(line.split(":")[1].strip())
+                            metrics[key] = value
+                        except:
+                            pass
+
     except FileNotFoundError:
         print(f"檔案 {file_path} 不存在！")
     except Exception as e:
         print(f"解析檔案 {file_path} 時發生錯誤: {e}")
-    return metrics
 
+    return metrics
 def main():
     # 設定基礎路徑
-    base_path = "metric_logs"
+    base_path = "metric_logs/spinnerf"
     all_metrics = {
         "FID": [],
         "LPIPS": [],
@@ -45,7 +48,8 @@ def main():
 
     # 遍歷 metric_logs 資料夾下的所有檔案
     for file_name in os.listdir(base_path):
-        if file_name.startswith("renders_") and file_name.endswith("_metrics.txt"):  # 僅處理符合格式的檔案
+        print(file_name)
+        if file_name.endswith("_metrics.txt"):  # 僅處理符合格式的檔案
             file_path = os.path.join(base_path, file_name)
             metrics = parse_metrics_from_file(file_path)
             if metrics:

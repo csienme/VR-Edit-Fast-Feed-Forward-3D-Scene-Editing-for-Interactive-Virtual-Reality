@@ -1,1 +1,0 @@
-python eval/eval_custom.py     --data_path eval_results_custom/custom_dataset/gen_3d_prop   

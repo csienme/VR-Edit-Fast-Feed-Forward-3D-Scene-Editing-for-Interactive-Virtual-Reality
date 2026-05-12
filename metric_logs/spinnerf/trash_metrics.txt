@@ -1,0 +1,16 @@
+===========================================
+Exp  : spinnerf
+Scene: trash
+===========================================
+[ Global Metrics ]
+   FID   : 43.7145
+   LPIPS : 0.3724
+   PSNR  : 20.4452
+   SSIM  : 0.4244
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 306.1559
+   m-LPIPS : 0.4731
+   m-PSNR  : 17.9566
+   m-SSIM  : 0.2770
+===========================================

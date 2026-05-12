@@ -1,0 +1,16 @@
+===========================================
+Exp  : spinnerf
+Scene: 7
+===========================================
+[ Global Metrics ]
+   FID   : 48.5751
+   LPIPS : 0.4132
+   PSNR  : 18.2082
+   SSIM  : 0.1996
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 57.7328
+   m-LPIPS : 0.4145
+   m-PSNR  : 16.7965
+   m-SSIM  : 0.1070
+===========================================

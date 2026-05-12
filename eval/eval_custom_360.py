@@ -450,9 +450,11 @@ def main():
                 global_ref_cache = {}
                 from eval.dead_zone_inpainter import build_inpainter
                 global_ref_cache["_inpainter"] = build_inpainter(args.inpaint_method)
-                global_ref_cache["_src_dilation_px"] = 11   # Fix 1: source mask 膨脹
-                global_ref_cache["_tgt_dilation_px"] = 5   # Fix 2: target mask 膨脹
-                global_ref_cache["_use_poisson"]     = False  # Fix 4: Poisson 光度收尾
+                global_ref_cache["_src_dilation_px"] = 11
+                global_ref_cache["_tgt_dilation_px"] = 5
+                global_ref_cache["_use_poisson"]     = False
+                global_ref_cache["_phot_z_thresh"]   = 3.0   # ← Strategy B 新增
+                global_ref_cache["_phot_ring_px"]    = 20    # ← Strategy B 新增
 
 
                 ALL_FRAMES = len(image_paths)

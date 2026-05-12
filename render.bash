@@ -1,1 +1,0 @@
-python train_render.py     --colmap_dir    purify_book        --nvs_pose      purify_hybrid_book     --train_img_dir  purify_book/images    --output_dir    ./renders_book

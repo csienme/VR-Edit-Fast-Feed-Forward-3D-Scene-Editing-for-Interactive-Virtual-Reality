@@ -117,9 +117,9 @@ def evaluate_metrics(args):
     fid_score_masked = fid_masked.compute().item()
 
     # Save to metric_logs/{exp_name}/{scene}/metrics.txt
-    save_dir = os.path.join(args.output_dir, args.exp_name, args.scene)
+    save_dir = os.path.join(args.output_dir, args.exp_name)
     os.makedirs(save_dir, exist_ok=True)
-    txt_log_path = os.path.join(save_dir, "metrics.txt")
+    txt_log_path = os.path.join(save_dir, f"{args.scene}_metrics.txt")
 
     log_content = (
         "===========================================\n"
