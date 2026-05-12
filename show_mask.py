@@ -29,7 +29,7 @@ def process_mask(input_path, output_dir):
         print(f"處理檔案時發生錯誤: {e}")
 
 if __name__ == "__main__":
-    input_file = "spinnerf-dataset/trash/images_4/label/20220811_093730.png"
+    input_file = "/home/robot-4090-3/paul/spinnerf-dataset/book/images_4/test_label/out_00024.png"
     output_dir = "masks"
 
     process_mask(input_file, output_dir)
