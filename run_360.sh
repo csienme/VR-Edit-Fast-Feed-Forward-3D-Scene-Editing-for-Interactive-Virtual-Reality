@@ -104,12 +104,13 @@ if should_run 4; then
         --nvs_pose      "${COLMAP_DIR}" \
         --train_img_dir "${COLMAP_DIR}/images" \
         ${DEADMASK_ARG} \
-        --output_dir    "${RENDER_DIR}" \
-        --total_iters   20000 \
-        --dead_weight   0.3 \
-        --patch_size    256
+        --output_dir "${RENDER_DIR}" \
+        --total_iters 20000 \
+        --dead_weight 0.3 \
+        --patch_size 256 \
+        --dw_alpha 7.0 \
+        --dw_warmup 1500
 fi
-
 echo ""
 echo "============================================================"
 echo "✅ 場景 ${SCENE} 完成！"

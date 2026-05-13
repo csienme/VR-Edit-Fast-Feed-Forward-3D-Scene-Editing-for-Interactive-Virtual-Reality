@@ -1,27 +1,25 @@
 """
-generative_inpaint_module_360.py  ── Phase 1 + Strat B v4
-==========================================================
-v4 新增兩個修正（解決補丁感 / 3DGS 黑塊）：
+generative_inpaint_module_360.py  ── Phase 1 + Strat B v4 + Shadow Detection v5
+================================================================================
+v5 新增（解決陰影造成黑色髒塊）:
 
-[Fix A] Spatial Coherence Filter on Trusted Region
-  問題根因：Strategy B 判定 z-score 夠低的 pulled pixel 為「trusted」保留，
-            但這些 pixel 是 per-pixel 獨立判斷，不考慮空間連續性。
-            Parallax artifact 通常是零散孤立的色塊（一個 source view
-            從特定角度看到不同背景，pull 過來後在 target view 是「孤島」）。
-            這些孤島雖然 z-score 低，但視覺上明顯是錯的顏色。
-  Fix：對 trusted 區域做 Connected Component 分析，移除面積 < min_trusted_blob
-       的孤立 blob。大塊 trusted（代表多 view 一致 pull 到相同內容，可信）
-       保留。孤立小塊退回 untrusted（由 Fix B 替換成 local_bg_est）。
+  [Shadow M1] Source-side shadow exclusion
+      陰影根因：陰影落在 SAM mask 外，屬於「可見的背景像素」
+                pull harvest 的三重 filter（FOV + dilated mask + depth）全部通過
+                → 陰影被當成真實背景 pull 進 canvas → LaMa 看到暗色 context → 生黑色
+      M1 修法：對每個 source view 偵測 cast shadow 區域（不假設光源方向）
+              把 shadow_mask 合進 mask_dilated → pull harvest 自動排除
 
-[Fix D] Edge-Preserving Bilateral Smoothing
-  問題根因：Fix B 把 untrusted 區填成 local_bg_est，trusted 區保留 pulled 值，
-            兩者在 pixel 邊界有色差跳躍。LaMa 看到的 context 有色階斷層，
-            生成結果也有斷層感。3DGS training 時這些斷層轉化為 3D artifact。
-  Fix：Fix B 後、LaMa 前，對整個 canvas 在 target_mask 範圍做 bilateral filter。
-       Bilateral 保留結構性 edge（placemat ↔ wood 邊界），平滑 pixel-level 色差。
-       LaMa 接到的 context 是 smooth gradient，不是色塊拼接。
+  [Shadow M2] Target-side brightness untrust
+      即使 M1 成功，仍可能有陰影 slip through（depth test 剛好過、連通性判斷失效）
+      M2 修法：pull 完後，對每個 trusted pixel 檢查亮度（HSV V channel）
+              明顯偏暗 → 強制 untrust → 進 dead_mask → LaMa 填補
+
+  模組：eval/shadow_detector.py（需先放到對應路徑）
+        若找不到該 module，graceful fallback：只 print 警告，其他功能不受影響
 
 可調參數 (ref_cache):
+  ── 原有 ──
   _src_dilation_px       = 11
   _tgt_dilation_px       = 5
   _use_poisson           = False
@@ -29,10 +27,16 @@ v4 新增兩個修正（解決補丁感 / 3DGS 黑塊）：
   _phot_ring_px          = 20
   _local_bg_radius       = 20
   _local_bg_extra_dil    = 30
-  _min_trusted_blob      = 1000  ⭐ Fix A: 孤立 trusted blob 最小存活面積 (px)
-  _bilateral_d           = 15    ⭐ Fix D: bilateral 直徑 (0 = 關閉)
-  _bilateral_sigma       = 30    ⭐ Fix D: color sigma
+  _min_trusted_blob      = 1000
+  _bilateral_d           = 15     (0 = 關閉)
+  _bilateral_sigma       = 30.0
   _inpainter             = build_inpainter("lama")
+
+  ── v5 新增（Shadow Detection）──
+  _shadow_search_px      = 70     # M1: mask 外搜尋陰影的距離 (px)
+  _shadow_thresh_k       = 1.5    # M1: 陰影亮度門檻 (越低越激進)
+  _min_shadow_blob       = 150    # M1: 最小陰影 blob 存活大小 (px)
+  _bright_untrust_k      = 2.5    # M2: target-side 亮度判斷門檻
 
   # Debug:
   _debug_dump_dir        = "debug_dump"
@@ -49,9 +53,17 @@ try:
 except ImportError:
     _INPAINTER_MODULE_AVAILABLE = False
 
+# v5: optional shadow detector (graceful fallback if not installed)
+try:
+    from eval.shadow_detector import compute_shadow_masks, brightness_untrust_filter
+    _SHADOW_DETECTOR_AVAILABLE = True
+except ImportError:
+    _SHADOW_DETECTOR_AVAILABLE = False
+    print("[Inpaint-360] ⚠️  eval/shadow_detector.py not found — shadow detection disabled")
+
 
 # ============================================================================
-# Helpers
+# Helpers (unchanged from v4)
 # ============================================================================
 def _resolve_mask_path(idx, image_paths, mask_paths, mask_dir):
     if mask_paths is not None:
@@ -150,12 +162,11 @@ def _poisson_blend(canvas, target_img, blend_mask):
 
 
 # ============================================================================
-# Strategy B v4 helpers
+# Strategy B helpers (unchanged from v4)
 # ============================================================================
 def _build_local_bg_estimate(target_img, target_mask_bool,
                               extra_dilation_px: int = 30,
                               radius: int = 20):
-    """[Fix A-prev] Shadow-zone-aware bg estimate via extra mask dilation."""
     mask_u8 = target_mask_bool.astype(np.uint8) * 255
     if extra_dilation_px > 0:
         kernel = np.ones((extra_dilation_px, extra_dilation_px), np.uint8)
@@ -183,7 +194,7 @@ def _photometric_validate(canvas, v_t, u_t, filled,
                            local_bg_est, bg_mad,
                            z_thresh: float = 3.0,
                            debug_print: bool = False):
-    """Strategy B v3/v4: detection only, don't touch canvas."""
+    """Strategy B: detect contaminated pulled pixels (no canvas change)."""
     filled_idx = np.where(filled)[0]
     if len(filled_idx) == 0:
         return filled, 0
@@ -216,24 +227,10 @@ def _photometric_validate(canvas, v_t, u_t, filled,
 
 def _spatial_coherence_filter(filled, filled_2d, v_t, u_t, target_mask,
                                min_blob: int = 1000):
-    """
-    [Fix A] Remove isolated trusted pixel clusters.
-
-    Trusted pulled pixels are judged per-pixel (z-score based), not spatially.
-    Parallax artifacts typically appear as small ISOLATED color patches:
-    one source view saw a different background, pulled it in, it's surrounded
-    by conflicting colors from other pulls or local_bg_est.
-
-    Strategy: CC analysis on the trusted region inside target_mask.
-    Blobs < min_blob pixels → likely parallax artifact → untrust them.
-    Large contiguous blobs → multiple views consistently pulled same BG → keep.
-
-    Returns updated (filled, filled_2d, n_removed).
-    """
+    """Fix A: Remove isolated trusted pixel clusters (parallax artifacts)."""
     trusted_in_mask = (filled_2d & target_mask).astype(np.uint8) * 255
     if not trusted_in_mask.any():
         return filled, filled_2d, 0
-
     n_labels, labels, stats, _ = cv2.connectedComponentsWithStats(
         trusted_in_mask, connectivity=8
     )
@@ -241,11 +238,9 @@ def _spatial_coherence_filter(filled, filled_2d, v_t, u_t, target_mask,
     for lbl in range(1, n_labels):
         if stats[lbl, cv2.CC_STAT_AREA] >= min_blob:
             trusted_clean[labels == lbl] = True
-
     isolated_2d = (filled_2d & target_mask) & ~trusted_clean
     isolated_1d = isolated_2d[v_t, u_t]
     n_removed = int(isolated_1d.sum())
-
     if n_removed > 0:
         new_filled = filled & ~isolated_1d
         new_filled_2d = filled_2d.copy()
@@ -253,24 +248,12 @@ def _spatial_coherence_filter(filled, filled_2d, v_t, u_t, target_mask,
         print(f"      🏝️  [Fix A] removed {n_removed:,} isolated trusted patches "
               f"(CC < {min_blob}px)")
         return new_filled, new_filled_2d, n_removed
-
-    print(f"      🏝️  [Fix A] no isolated patches (all trusted blobs ≥ {min_blob}px)")
+    print(f"      🏝️  [Fix A] no isolated patches")
     return filled, filled_2d, 0
 
 
 def _bilateral_smooth(canvas, target_mask, d: int = 15, sigma_color: float = 30.0):
-    """
-    [Fix D] Edge-preserving bilateral smoothing within target_mask.
-
-    Smooths color transitions between:
-      - trusted pulled pixels (real BG from other views, may have color variation)
-      - untrusted local_bg_est pixels (smooth gradient fill)
-    Bilateral preserves structural edges (placemat edge, wood grain)
-    while eliminating per-pixel color patch artifacts.
-
-    Applied globally, result used only within target_mask so boundary
-    pixels correctly reference real background neighbors outside the mask.
-    """
+    """Fix D: Edge-preserving bilateral smoothing within target_mask."""
     if d <= 0:
         return canvas
     smoothed = cv2.bilateralFilter(canvas, d=d, sigmaColor=sigma_color, sigmaSpace=d)
@@ -280,7 +263,7 @@ def _bilateral_smooth(canvas, target_mask, d: int = 15, sigma_color: float = 30.
 
 
 # ============================================================================
-# Debug helper
+# Debug helper (unchanged)
 # ============================================================================
 def _debug_save(dump_dir, target_idx, stage_name, image_or_mask, is_mask=False):
     if dump_dir is None:
@@ -311,6 +294,7 @@ def _harvest_target_view(target_idx, views, all_cam_to_world_mat,
                          min_trusted_blob: int = 1000,
                          bilateral_d: int = 15,
                          bilateral_sigma: float = 30.0,
+                         bright_untrust_k: float = 2.5,   # v5 新增
                          debug_dump_dir=None,
                          debug_this_target: bool = False):
 
@@ -326,7 +310,7 @@ def _harvest_target_view(target_idx, views, all_cam_to_world_mat,
     if debug_this_target:
         _debug_save(debug_dump_dir, target_idx, "01_target_img", target_img)
 
-    # ── Fix 2: 膨脹 target mask ──────────────────────────────────
+    # ── Fix 2: target mask dilation ──────────────────────────────
     target_mask_orig = target["mask"] > 0
     if tgt_dilation_px > 0:
         tgt_k  = np.ones((tgt_dilation_px, tgt_dilation_px), np.uint8)
@@ -346,7 +330,7 @@ def _harvest_target_view(target_idx, views, all_cam_to_world_mat,
     if n_holes == 0:
         return canvas, np.zeros((H, W), dtype=bool)
 
-    # ── Step 1: 反投影 ───────────────────────────────────────────
+    # ── Step 1: unproject ─────────────────────────────────────────
     z_t = target_depth[v_t, u_t]
     valid_z = (z_t > 0) & np.isfinite(z_t)
     if not valid_z.all():
@@ -358,13 +342,13 @@ def _harvest_target_view(target_idx, views, all_cam_to_world_mat,
     pts_h     = np.hstack([pts_cam_t, np.ones((n_holes, 1))])
     pts_world = (c2w_t @ pts_h.T).T[:, :3]
 
-    # ── Step 2: 排序 source views ─────────────────────────────────
+    # ── Step 2: sort source views ─────────────────────────────────
     target_dir = view_dirs[target_idx]
     sims = view_dirs @ target_dir
     sims[target_idx] = -2.0
     source_order = np.argsort(-sims)
 
-    # ── Step 3: Pull harvest ─────────────────────────────────────
+    # ── Step 3: pull harvest ──────────────────────────────────────
     filled      = np.zeros(n_holes, dtype=bool)
     source_used = np.full(n_holes, -1, dtype=np.int32)
     pts_world_h = np.hstack([pts_world, np.ones((n_holes, 1))])
@@ -382,6 +366,7 @@ def _harvest_target_view(target_idx, views, all_cam_to_world_mat,
         src_img   = src_view["img"]
         src_depth = src_view["depth"]
         H_s, W_s  = src_view["H"], src_view["W"]
+        # v5: mask_dilated now includes shadow regions (from compute_shadow_masks)
         src_mask_check = src_view["mask_dilated"] > 0
 
         pts_check   = pts_world_h[unfilled_idx]
@@ -409,7 +394,9 @@ def _harvest_target_view(target_idx, views, all_cam_to_world_mat,
             n_sources_tried += 1
             continue
         local_pull_idx = unfilled_idx[valid_pull]
-        canvas[v_t[local_pull_idx], u_t[local_pull_idx]] = src_img[v_safe_arr[valid_pull], u_safe_arr[valid_pull]]
+        canvas[v_t[local_pull_idx], u_t[local_pull_idx]] = (
+            src_img[v_safe_arr[valid_pull], u_safe_arr[valid_pull]]
+        )
         filled[local_pull_idx]      = True
         source_used[local_pull_idx] = src_idx
         n_sources_tried += 1
@@ -419,7 +406,7 @@ def _harvest_target_view(target_idx, views, all_cam_to_world_mat,
     if debug_this_target:
         _debug_save(debug_dump_dir, target_idx, "04_canvas_after_pull", canvas)
 
-    # ── Step 3.5: local_bg_est + Strategy B ─────────────────────
+    # ── Step 3.5: local_bg_est + Strategy B ──────────────────────
     local_bg_est = _build_local_bg_estimate(target_img, target_mask,
                                              extra_dilation_px=local_bg_extra_dil,
                                              radius=local_bg_radius)
@@ -433,9 +420,20 @@ def _harvest_target_view(target_idx, views, all_cam_to_world_mat,
         z_thresh=phot_z_thresh, debug_print=debug_this_target,
     )
 
-    # ── Step 3.6: Fix A — Spatial Coherence Filter ───────────────
-    # Compute filled_2d here so Fix A can operate on it, then
-    # REUSE this filled_2d throughout the rest of the function.
+    # ── Step 3.6: Shadow Method 2 — brightness untrust ───────────
+    # Catches shadow pixels that slipped through Method 1 (source-side).
+    # Runs BEFORE Fix A so that shadow-untrusted pixels are included in
+    # dead_mask and handled by LaMa (not mistakenly kept as trusted).
+    if _SHADOW_DETECTOR_AVAILABLE:
+        filled, n_shadow_untrust = brightness_untrust_filter(
+            canvas, v_t, u_t, filled,
+            target_img, target_mask,
+            bright_untrust_k=bright_untrust_k,
+        )
+    else:
+        n_shadow_untrust = 0
+
+    # ── Step 3.7: Fix A — Spatial Coherence Filter ────────────────
     filled_2d = np.zeros((H, W), dtype=bool)
     filled_2d[v_t, u_t] = filled
 
@@ -447,7 +445,7 @@ def _harvest_target_view(target_idx, views, all_cam_to_world_mat,
         _debug_save(debug_dump_dir, target_idx, "05_filled_2d_after_fixA",
                     filled_2d & target_mask, is_mask=True)
 
-    # ── Step 4: 統計（所有 filter 後的最終狀態）──────────────────
+    # ── Step 4: stats ─────────────────────────────────────────────
     n_filled = int(filled.sum())
     n_dead   = n_holes - n_filled
     pct_pull = 100 * n_filled / max(n_holes, 1)
@@ -455,10 +453,11 @@ def _harvest_target_view(target_idx, views, all_cam_to_world_mat,
     n_unique = len(np.unique(source_used[filled])) if n_filled > 0 else 0
     print(f"      📤 V_{target_idx:3d}: "
           f"raw={n_pulled_raw:,} → stratB={n_pulled_raw-n_contaminated:,} "
+          f"→ shadow={n_pulled_raw-n_contaminated-n_shadow_untrust:,} "
           f"→ fixA={n_filled:,}/{n_holes:,} ({pct_pull:.1f}%) "
           f"from {n_unique} src | dead={n_dead:,} ({pct_dead:.1f}%)")
 
-    # ── Step 5: dead_mask + morphology + CC filter ────────────────
+    # ── Step 5: dead_mask + morphology + CC ──────────────────────
     dead_mask = np.zeros((H, W), dtype=bool)
     dead_idx  = np.where(~filled)[0]
     if len(dead_idx) > 0:
@@ -474,23 +473,19 @@ def _harvest_target_view(target_idx, views, all_cam_to_world_mat,
         dead_u8       = cv2.morphologyEx(dead_u8, cv2.MORPH_CLOSE, close_kernel)
         dilate_kernel = np.ones((5, 5), np.uint8)
         dead_u8       = cv2.dilate(dead_u8, dilate_kernel, iterations=1)
-
-        n_labels, labels, stats, _ = cv2.connectedComponentsWithStats(
-            dead_u8, connectivity=8
-        )
+        n_lbl, lbls, stats, _ = cv2.connectedComponentsWithStats(dead_u8, connectivity=8)
         min_blob_px = 500
         clean_u8 = np.zeros_like(dead_u8)
-        for lbl in range(1, n_labels):
+        for lbl in range(1, n_lbl):
             if stats[lbl, cv2.CC_STAT_AREA] >= min_blob_px:
-                clean_u8[labels == lbl] = 255
+                clean_u8[lbls == lbl] = 255
         dead_mask_final = clean_u8 > 0
 
         if debug_this_target:
             _debug_save(debug_dump_dir, target_idx, "07_dead_mask_final",
                         dead_mask_final, is_mask=True)
 
-        # ── Fix B: Comprehensive canvas cleaning ──────────────────
-        # Use filled_2d from Fix A (already updated)
+        # Fix B: clean all untrusted pixels with local_bg_est
         untrusted_in_mask = target_mask & ~filled_2d
         n_untrusted = int(untrusted_in_mask.sum())
         if n_untrusted > 0:
@@ -499,7 +494,7 @@ def _harvest_target_view(target_idx, views, all_cam_to_world_mat,
             ).astype(np.uint8)
             print(f"      🧹 [Fix B] cleaned {n_untrusted:,} untrusted pixels")
 
-        # ── Fix D: Bilateral smoothing ─────────────────────────────
+        # Fix D: bilateral smoothing
         canvas = _bilateral_smooth(canvas, target_mask,
                                    d=bilateral_d, sigma_color=bilateral_sigma)
         if bilateral_d > 0:
@@ -542,6 +537,7 @@ def generative_multi_ref_propagation(
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
+    # ── 讀取所有參數 ─────────────────────────────────────────────
     src_dilation_px    = ref_cache.get("_src_dilation_px", 11)
     tgt_dilation_px    = ref_cache.get("_tgt_dilation_px", 5)
     use_poisson        = ref_cache.get("_use_poisson", False)
@@ -552,29 +548,51 @@ def generative_multi_ref_propagation(
     min_trusted_blob   = ref_cache.get("_min_trusted_blob", 1000)
     bilateral_d        = ref_cache.get("_bilateral_d", 15)
     bilateral_sigma    = ref_cache.get("_bilateral_sigma", 30.0)
+    # v5 shadow params
+    shadow_search_px   = ref_cache.get("_shadow_search_px", 70)
+    shadow_thresh_k    = ref_cache.get("_shadow_thresh_k", 1.5)
+    min_shadow_blob    = ref_cache.get("_min_shadow_blob", 150)
+    bright_untrust_k   = ref_cache.get("_bright_untrust_k", 2.5)
 
-    debug_dump_dir       = ref_cache.get("_debug_dump_dir", "./debug_dump")
+    debug_dump_dir       = ref_cache.get("_debug_dump_dir", None)
     debug_target_indices = ref_cache.get("_debug_target_indices", [])
     debug_this_target    = (debug_dump_dir is not None and
                             target_idx in debug_target_indices)
 
+    # ── 第一次呼叫：載入 views + shadow detection ─────────────────
     if "_pullharvest_views" not in ref_cache:
-        print("\n[Inpaint-360 Pull-Harvest v4] 首次呼叫")
+        print("\n[Inpaint-360 v5] 首次呼叫: 載入 view 資料 ...")
         print(f"    src_dil={src_dilation_px}px | tgt_dil={tgt_dilation_px}px | "
-              f"poisson={use_poisson} | z_thresh={phot_z_thresh}")
-        print(f"    bg_extra_dil={local_bg_extra_dil}px | "
-              f"min_trusted_blob={min_trusted_blob}px | "
+              f"z_thresh={phot_z_thresh} | bg_extra_dil={local_bg_extra_dil}px")
+        print(f"    min_trusted_blob={min_trusted_blob}px | "
               f"bilateral d={bilateral_d} σ={bilateral_sigma}")
+        print(f"    shadow: search={shadow_search_px}px thresh_k={shadow_thresh_k} "
+              f"min_blob={min_shadow_blob}px bright_k={bright_untrust_k}")
+
         views = _load_all_views(
             image_paths, mask_paths, mask_dir,
             raw_depth_maps, intrinsics,
             src_mask_dilation_px=src_dilation_px,
         )
+
+        # ── v5: Shadow Method 1 (source-side) ────────────────────
+        if _SHADOW_DETECTOR_AVAILABLE:
+            compute_shadow_masks(
+                views,
+                search_px=shadow_search_px,
+                thresh_k=shadow_thresh_k,
+                min_shadow_blob_px=min_shadow_blob,
+                verbose=True,
+            )
+        else:
+            print("    ⚠️  shadow_detector unavailable — M1 skipped")
+
         view_dirs     = _compute_view_directions(views, all_cam_to_world_mat)
         scene_d_range = _scene_depth_range(views)
         ref_cache["_pullharvest_views"]     = views
         ref_cache["_pullharvest_view_dirs"] = view_dirs
         ref_cache["_pullharvest_d_range"]   = scene_d_range
+
         inpainter_obj = ref_cache.get("_inpainter")
         strategy = (getattr(inpainter_obj, "name", "cv2-fallback")
                     if inpainter_obj else "cv2-fallback")
@@ -601,6 +619,7 @@ def generative_multi_ref_propagation(
         min_trusted_blob=min_trusted_blob,
         bilateral_d=bilateral_d,
         bilateral_sigma=bilateral_sigma,
+        bright_untrust_k=bright_untrust_k,
         debug_dump_dir=debug_dump_dir,
         debug_this_target=debug_this_target,
     )

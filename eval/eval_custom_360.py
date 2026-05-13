@@ -452,17 +452,24 @@ def main():
                 global_ref_cache["_src_dilation_px"] = 11
                 global_ref_cache["_tgt_dilation_px"] = 5
                 global_ref_cache["_use_poisson"]     = False
-                global_ref_cache["_phot_z_thresh"]   = 3.0
+                global_ref_cache["_phot_z_thresh"]   = 2.5#3.0
                 global_ref_cache["_phot_ring_px"]    = 20
                 global_ref_cache["_local_bg_radius"] = 20
 
                 # Debug：選一張黑影特別嚴重的 frame，存中間狀態
                 global_ref_cache["_debug_dump_dir"]       = "debug_dump"
-                global_ref_cache["_debug_target_indices"] = [274]   # 改成你要 debug 的那張的 idx
+                global_ref_cache["_debug_target_indices"] = [0]   # 改成你要 debug 的那張的 idx
                 global_ref_cache["_min_trusted_blob"] = 1000  # Fix A: 孤立 patch 最小存活面積
                 global_ref_cache["_bilateral_d"]      = 15    # Fix D: bilateral 直徑
                 global_ref_cache["_bilateral_sigma"]  = 30.0  # Fix D: color sigma
                 global_ref_cache["_inpainter"] = build_inpainter(args.inpaint_method)
+
+
+                # v5 Shadow Detection params
+                global_ref_cache["_shadow_search_px"]  = 100    # 搜尋距離，長陰影場景改 100
+                global_ref_cache["_shadow_thresh_k"]   = 4.0   # 亮度門檻，越低抓越多
+                global_ref_cache["_min_shadow_blob"]   = 150   # 最小陰影 blob (px)
+                global_ref_cache["_bright_untrust_k"]  = 2.0   # M2 target-side 門檻
 
                 ALL_FRAMES = len(image_paths)
                 if args.generate == "all frame":
