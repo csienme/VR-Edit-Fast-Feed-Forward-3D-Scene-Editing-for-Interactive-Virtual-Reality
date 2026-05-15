@@ -47,58 +47,6 @@ class DeadZoneInpainter(ABC):
 
 
 # ============================================================================
-# 策略 1: OpenCV Telea (預設, 快但糊)
-# ============================================================================
-class CV2Inpainter(DeadZoneInpainter):
-    """
-    OpenCV Telea inpainting. 把鄰近 pixel 的 RGB 往內擴散.
-    優點: 快 (<100ms), 內建, 確定性
-    缺點: 高頻紋理會糊掉; 附近有暗色就拖暗成黑影
-    """
-    name = "cv2"
-
-    def __init__(self, radius: int = 10, dilate_px: int = 3):
-        self.radius = radius
-        self.dilate_px = dilate_px
-
-    # def inpaint(self, canvas, dead_mask, context=None):
-    #     if not dead_mask.any():
-    #         return canvas
-    #     dead_u8 = dead_mask.astype(np.uint8) * 255
-    #     if self.dilate_px > 0:
-    #         kernel = np.ones((self.dilate_px, self.dilate_px), np.uint8)
-    #         dead_u8 = cv2.dilate(dead_u8, kernel, iterations=1)
-    #     return cv2.inpaint(canvas, dead_u8, self.radius, cv2.INPAINT_TELEA)
-    def inpaint(self, canvas, dead_mask, context=None):
-        if not dead_mask.any():
-            return canvas
-            
-        dead_u8 = dead_mask.astype(np.uint8) * 255
-        
-        # --- 【升級 1: Mask 實體化 (Mask Consolidation)】 ---
-        # 使用形態學閉運算，消滅內部的次像素黑點，同時不吃掉外圍真實像素
-        # kernel 設為 5 或 7，足以吃掉大部分 3D 投影產生的浮點數縫隙
-        close_kernel_size = 5 
-        close_kernel = np.ones((close_kernel_size, close_kernel_size), np.uint8)
-        dead_u8 = cv2.morphologyEx(dead_u8, cv2.MORPH_CLOSE, close_kernel)
-        
-        # --- 【升級 2: 處理極端 Forward-facing 場景的 AuraFusion 模式 (可選)】 ---
-        # 如果你發現某些場景真的破得太誇張，可以直接啟用輪廓填充
-        # contours, _ = cv2.findContours(dead_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        # cv2.drawContours(dead_u8, contours, -1, 255, thickness=cv2.FILLED)
-        # --------------------------------------------------------
-
-        # --- 保留微小的 Dilation (用來掩蓋拉扯邊緣的接縫) ---
-        # 這裡的 dilate 只需要非常小 (例如 1-2 px)，單純用來柔和 Source 與 Inpaint 區域的交界
-        if self.dilate_px > 0:
-            kernel = np.ones((self.dilate_px, self.dilate_px), np.uint8)
-            dead_u8 = cv2.dilate(dead_u8, kernel, iterations=1)
-            
-        # 最後交給生成器 (LaMa 或 CV2)
-        return cv2.inpaint(canvas, dead_u8, self.radius, cv2.INPAINT_TELEA)
-
-
-# ============================================================================
 # 策略 2: LaMa (推薦)
 # ============================================================================
 class LamaInpainter(DeadZoneInpainter):
@@ -184,16 +132,16 @@ class SDInpainter(DeadZoneInpainter):
         self,
         prompt: str =(
         "an RGB image of a seamless empty background, "
-        "seamless surrounding textures, "
+        "seamless textures, "
         "continuous surface, clean and uncluttered, "
         "empty scenery, highly detailed, photorealistic"
         ),
-        negative_prompt: str = "object, statue, animal, person, blurry, distorted, dark spot",
+        negative_prompt: str = "object, blurry, distorted, dark spot",
         dilate_px: int = 10,
         num_steps: int = 25,
-        guidance_scale: float = 5.0,
+        guidance_scale: float = 4.0,
         use_controlnet: bool = True,
-        controlnet_scale: float = 0.6,
+        controlnet_scale: float = 0.7,
         seed: int = 42,
     ):
         self.prompt = prompt
@@ -322,9 +270,7 @@ def build_inpainter(method: str = "cv2", **kwargs) -> DeadZoneInpainter:
         build_inpainter("cv2", radius=15)
     """
     method = method.lower().strip()
-    if method == "cv2" or method == "telea":
-        return CV2Inpainter(**kwargs)
-    elif method == "lama":
+    if method == "lama":
         return LamaInpainter(**kwargs)
     elif method == "sd" or method == "diffusion":
         return SDInpainter(**kwargs)

@@ -1,20 +1,26 @@
 """
-train_render_360.py  —  Bear 360° / 單 COLMAP 場景版（v6 - Uncertainty-Aware Dynamic Weighting）
+train_.py  —  Bear 360° / 單 COLMAP 場景版（v6 - Uncertainty-Aware Dynamic Weighting）
 
-[VGGT/3D Inpainting 動態權重升級版]
-1. 引入「動態不確定性權重 (Dynamic Weighting)」機制，解決 SD 獨立修圖的幻覺模糊問題。
-2. Warm-up (預設 2000 iters)：先用 L1 建立粗糙 3D 鷹架。
-3. Consensus Weighting：透過計算即時殘差 (Render vs SD)，自動揪出幻覺區域並套用 exp(-alpha * Error) 大幅降低其 L1、SSIM 與 LPIPS 權重。
-4. 保留所有原本接口，原執行指令可直接無縫運行。
+[訓練專用版]
+完成訓練後將 Gaussian 儲存至指定 .ply 路徑，供 render.py 獨立載入使用。
+
+用法：
+    python train_.py \
+        --colmap_dir    "${PURIFY_DIR}" \
+        --train_img_dir "${PURIFY_DIR}/images" \
+        --deadmask_dir  "${DEADMASK_DIR}" \
+        --output_gaussian "${OUTPUT_DIR}/gaussians.ply" \
+        --total_iters   20000 \
+        --dead_weight   0.3 \
+        --patch_size    256
 """
 
-import os, struct, math, random, glob
+import os, struct, math, random
 import cv2, numpy as np
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 from argparse import ArgumentParser
-from torchvision.utils import save_image
 
 from scene import Scene
 from scene.gaussian_model import GaussianModel
@@ -23,7 +29,7 @@ import lpips as lpips_module
 
 
 # ═══════════════════════════════════════════════════════════
-#  COLMAP Binary Reader & Camera Classes (不變)
+#  COLMAP Binary Reader & Camera Classes（不變）
 # ═══════════════════════════════════════════════════════════
 
 def _read_cameras_bin(path):
@@ -107,33 +113,6 @@ class PoseOnlyCamera:
         P[2,2]=zfar/(zfar-znear); P[2,3]=-(zfar*znear)/(zfar-znear)
         return P.transpose(0,1).to(device)
 
-def load_gt_cameras_from_colmap(colmap_root, device="cuda"):
-    sparse_dir = os.path.join(colmap_root, "sparse")
-    if not os.path.exists(os.path.join(sparse_dir, "cameras.bin")):
-        sparse_dir = os.path.join(sparse_dir, "0")
-
-    cam_meta = _read_cameras_bin(os.path.join(sparse_dir, "cameras.bin"))
-    img_meta = _read_images_bin(os.path.join(sparse_dir, "images.bin"))
-
-    def _build(img):
-        cm = cam_meta[img["camera_id"]]
-        W, H = cm["width"], cm["height"]
-        p    = cm["params"]
-        fx   = p[0] if cm["model"] == "PINHOLE" else p[0]
-        fy   = p[1] if cm["model"] == "PINHOLE" else p[0]
-        return PoseOnlyCamera(
-            name=img["name"], R_wc=img["R"], t_wc=img["t"],
-            FoVx=2*np.arctan(W/(2*fx)), FoVy=2*np.arctan(H/(2*fy)),
-            width=W, height=H, device=device,
-        )
-
-    cameras = [_build(img) for img in img_meta if not img["name"].startswith("inpainted_")]
-    if len(cameras) == 0:
-        cameras = [_build(img) for img in img_meta]
-
-    cameras.sort(key=lambda c: c.image_name)
-    return cameras
-
 def sort_cameras(cams):
     def _key(c):
         stem = c.image_name.rsplit('.', 1)[0]
@@ -163,9 +142,9 @@ def weighted_l1_dynamic(img, gt, dead_mask=None, dead_w=0.3, step=0, dw_warmup=2
     結合 DeadMask 與「動態幻覺感知權重」的 L1 Loss。
     回傳計算後的最終 weight_map，供後續的 SSIM 與 LPIPS 使用，確保全局梯度一致。
     """
-    diff = (img - gt).abs() # (3, H, W)
-    
-    # 1. 取得 Base Weight (來自 Dead Mask)
+    diff = (img - gt).abs()  # (3, H, W)
+
+    # 1. 取得 Base Weight（來自 Dead Mask）
     if dead_mask is not None:
         w_base = torch.where(dead_mask > 0.5, torch.full_like(dead_mask, dead_w), torch.ones_like(dead_mask))
     else:
@@ -173,9 +152,9 @@ def weighted_l1_dynamic(img, gt, dead_mask=None, dead_w=0.3, step=0, dw_warmup=2
 
     # 2. 計算 Dynamic Consensus Weighting
     if step >= dw_warmup:
-        with torch.no_grad(): # 非常重要：避免權重本身產生反向傳播的梯度崩潰
+        with torch.no_grad():  # 非常重要：避免權重本身產生反向傳播的梯度崩潰
             # 殘差越高 -> 越可能是幻覺破壞共識 -> w_dyn 越小
-            pixel_err = diff.mean(dim=0, keepdim=True).detach() 
+            pixel_err = diff.mean(dim=0, keepdim=True).detach()
             w_dyn = torch.exp(-dw_alpha * pixel_err)
     else:
         w_dyn = torch.ones_like(w_base)
@@ -185,12 +164,12 @@ def weighted_l1_dynamic(img, gt, dead_mask=None, dead_w=0.3, step=0, dw_warmup=2
 
     l1_weighted = (diff * w_final).sum() / (w_final.sum() * diff.shape[0] + 1e-8)
     l1_raw      = diff.mean()
-    
+
     return l1_weighted, l1_raw, w_final, w_dyn.mean()
 
 
 def ssim_loss(img1, img2, weight_map=None, ws=11, C1=1e-4, C2=9e-4):
-    """支援像素級權重 (Pixel-wise Weight Map) 的 SSIM"""
+    """支援像素級權重（Pixel-wise Weight Map）的 SSIM"""
     if img1.dim() == 3:
         img1 = img1.unsqueeze(0); img2 = img2.unsqueeze(0)
     C = img1.shape[1]
@@ -205,14 +184,14 @@ def ssim_loss(img1, img2, weight_map=None, ws=11, C1=1e-4, C2=9e-4):
     s12 = conv(img1*img2) - m1*m2
     num = (2*m1*m2 + C1) * (2*s12 + C2)
     den = (m1**2 + m2**2 + C1) * (s1 + s2 + C2)
-    
-    ssim_map = num / den # shape: (1, 3, H, W)
-    
+
+    ssim_map = num / den  # shape: (1, 3, H, W)
+
     if weight_map is not None:
         # 將 weight_map (1, H, W) 擴展至 (1, 1, H, W) 與 ssim_map 對應相乘
         ssim_val = (ssim_map * weight_map.unsqueeze(1)).sum() / (weight_map.sum() * C + 1e-8)
         return (1 - ssim_val).clamp(min=0.0)
-        
+
     return (1 - ssim_map.mean()).clamp(min=0.0)
 
 
@@ -221,13 +200,13 @@ def random_patch_lpips(lpips_fn, img, gt, weight_map, H, W, patch=256):
     P  = min(patch, H, W)
     y0 = random.randint(0, H - P)
     x0 = random.randint(0, W - P)
-    
+
     # 計算該 Patch 範圍內的平均權重
     w_patch = weight_map[:, y0:y0+P, x0:x0+P].mean().item() if weight_map is not None else 1.0
-    
+
     ip = img[:, y0:y0+P, x0:x0+P].unsqueeze(0)
     gp = gt [:, y0:y0+P, x0:x0+P].unsqueeze(0)
-    
+
     # 乘上該 Patch 的共識信任度
     return lpips_fn(ip * 2 - 1, gp * 2 - 1).mean() * w_patch
 
@@ -245,10 +224,10 @@ class Pipe:
 
 
 # ═══════════════════════════════════════════════════════════
-#  Main Loop
+#  Training
 # ═══════════════════════════════════════════════════════════
 
-def train_and_render(args):
+def train(args):
     TOTAL_ITERS = args.total_iters
     DEAD_WEIGHT = args.dead_weight
     PATCH_SIZE  = args.patch_size
@@ -264,22 +243,19 @@ def train_and_render(args):
     CLEANUP_OPACITY   = 0.10
     RESET_ITERS       = [3000, 8000]
 
-    print("🚀 3DGS 訓練與渲染（Bear 360° - Dynamic Weighting 升級版）")
+    print("🚀 3DGS 訓練（Bear 360° - Dynamic Weighting 升級版）")
     print(f"   total_iters={TOTAL_ITERS}  dead_weight={DEAD_WEIGHT}  patch_size={PATCH_SIZE}")
-    print(f"   [Dynamic Weighting] 啟用! Warmup: {args.dw_warmup} steps, Alpha(懲罰力度): {args.dw_alpha}")
-    
-    os.makedirs(args.output_dir, exist_ok=True)
+    print(f"   [Dynamic Weighting] 啟用! Warmup: {args.dw_warmup} steps, Alpha: {args.dw_alpha}")
+
     pipe = Pipe()
     bg   = torch.tensor([0., 0., 0.], dtype=torch.float32, device="cuda")
 
-    # Step 1~3: Load Data (與原版相同)
+    # ── Step 1~3: Load Data ──
     gaussians     = GaussianModel(sh_degree=3)
     scene_obj     = Scene(args.colmap_dir, gaussians, shuffle=False)
     train_cameras = sort_cameras(scene_obj.getTrainCameras())
     del scene_obj
 
-    test_cameras = load_gt_cameras_from_colmap(args.nvs_pose, device="cuda")
-    
     raw = [f for f in os.listdir(args.train_img_dir) if f.lower().endswith(('.png', '.jpg'))]
     purify_files = sort_cameras([type("_", (), {"image_name": f})() for f in raw])
     purify_files = [o.image_name for o in purify_files]
@@ -289,20 +265,20 @@ def train_and_render(args):
         img  = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB)
         img  = cv2.resize(img, (cam.image_width, cam.image_height))
         cam.original_image = (torch.tensor(img, dtype=torch.float32).permute(2, 0, 1).cuda() / 255.)
-    
+
     _H, _W = train_cameras[0].original_image.shape[1:]
 
-    for cam in train_cameras + test_cameras:
+    for cam in train_cameras:
         cam.dead_mask = None
 
     if args.deadmask_dir is not None:
         load_deadmasks_sorted(args.deadmask_dir, train_cameras, _W, _H)
 
-    # Step 4: Optimizer
+    # ── Step 4: Optimizer ──
     centers   = torch.stack([c.camera_center for c in train_cameras])
     extent    = torch.norm(centers - centers.mean(0), dim=-1).max().item() * 1.1
     lr_extent = max(extent, 1.0)
-    
+
     opt = torch.optim.Adam([
         {"params": [gaussians._xyz],           "lr": 0.00016 * lr_extent, "name": "xyz"},
         {"params": [gaussians._features_dc],   "lr": 0.0025,              "name": "f_dc"},
@@ -317,7 +293,7 @@ def train_and_render(args):
     lpips_fn = lpips_module.LPIPS(net="vgg").cuda().eval()
     for _p in lpips_fn.parameters(): _p.requires_grad_(False)
 
-    # Step 5: Training Loop
+    # ── Step 5: Training Loop ──
     cycle = train_cameras.copy()
     random.shuffle(cycle)
     ci       = 0
@@ -337,7 +313,7 @@ def train_and_render(args):
 
         # ── 核心計算：傳入當前 step 以啟動動態幻覺感知權重 ──
         ll1_masked, ll1_raw, w_final, mean_dyn_w = weighted_l1_dynamic(
-            img, gt, dead_mask, dead_w=DEAD_WEIGHT, 
+            img, gt, dead_mask, dead_w=DEAD_WEIGHT,
             step=it, dw_warmup=args.dw_warmup, dw_alpha=args.dw_alpha
         )
 
@@ -348,7 +324,7 @@ def train_and_render(args):
         loss = 0.70 * ll1_masked + 0.15 * ls + 0.15 * lp
         loss.backward()
 
-        # Gaussian management (不變)
+        # Gaussian management（不變）
         with torch.no_grad():
             if it < DENSIFY_UNTIL:
                 gaussians.max_radii2D[pkg["visibility_filter"]] = torch.max(
@@ -377,46 +353,53 @@ def train_and_render(args):
 
         if it % 1000 == 0:
             n_gs   = gaussians.get_xyz.shape[0]
-            xyz_lr = next(pg["lr"] for pg in opt.param_groups if pg["name"] == "xyz")
             entry  = {
-                "iter":      it,
-                "loss":      loss.item(),
-                "l1_w":      ll1_masked.item(),
-                "ssim":      ls.item(),
-                "dyn_w":     mean_dyn_w.item(), # 紀錄動態權重的平均值，供觀察
-                "n_gs":      n_gs,
+                "iter":  it,
+                "loss":  loss.item(),
+                "l1_w":  ll1_masked.item(),
+                "ssim":  ls.item(),
+                "dyn_w": mean_dyn_w.item(),
+                "n_gs":  n_gs,
             }
             loss_log.append(entry)
             print(f"\n[DEBUG] iter={it:5d}  loss={entry['loss']:.4f}  l1_w={entry['l1_w']:.4f}  "
                   f"ssim(1-SSIM)={entry['ssim']:.4f}  dyn_w_mean={entry['dyn_w']:.3f}  n_gs={n_gs:,}")
 
-    # Step 6: Render
-    print(f"\n📸 Rendering from {len(test_cameras)} poses ...")
-    with torch.no_grad():
-        for cam in tqdm(test_cameras, desc="Rendering"):
-            pkg = render(cam, gaussians, pipe, bg)
-            save_image(pkg["render"], os.path.join(args.output_dir, cam.image_name))
+    # ── Step 6: Save Gaussians（用 torch.save state dict）──
+    gauss_dir = os.path.dirname(os.path.abspath(args.output_gaussian))
+    os.makedirs(gauss_dir, exist_ok=True)
 
-    print(f"\n✅ Done → {args.output_dir}")
+    state = {
+        "active_sh_degree":  gaussians.active_sh_degree,
+        "_xyz":              gaussians._xyz.detach().cpu(),
+        "_features_dc":      gaussians._features_dc.detach().cpu(),
+        "_features_rest":    gaussians._features_rest.detach().cpu(),
+        "_scaling":          gaussians._scaling.detach().cpu(),
+        "_rotation":         gaussians._rotation.detach().cpu(),
+        "_opacity":          gaussians._opacity.detach().cpu(),
+    }
+    torch.save(state, args.output_gaussian)
+
+    n_final = gaussians.get_xyz.shape[0]
+    print(f"\n✅ 訓練完成！共 {n_final:,} 個 Gaussians")
+    print(f"💾 Gaussian 已儲存 → {args.output_gaussian}")
 
 
 if __name__ == "__main__":
     p = ArgumentParser()
-    # 原本的必填與選填 (保證指令相容)
-    p.add_argument("--colmap_dir",    required=True)
-    p.add_argument("--nvs_pose",      required=True)
-    p.add_argument("--train_img_dir", required=True)
-    p.add_argument("--output_dir",    required=True)
-    p.add_argument("--deadmask_dir",  default=None)
-    p.add_argument("--gt_img_dir",    default=None)
-    p.add_argument("--total_iters",   type=int,   default=20000)
-    p.add_argument("--dead_weight",   type=float, default=0.3)
-    p.add_argument("--patch_size",    type=int,   default=256)
-    
-    # 💥 本次新增：Dynamic Weighting 的超參數 (有預設值，不影響原腳本)
-    p.add_argument("--dw_warmup",     type=int,   default=1500,
-                   help="開始啟動不確定性感知的 Iteration。讓 3DGS 有時間先建立骨架。")
-    p.add_argument("--dw_alpha",      type=float, default=7.0,
-                   help="懲罰係數。數值越大，對幻覺殘差越嚴格 (Error 變大時 Weight 掉得越快)。")
-
-    train_and_render(p.parse_args())
+    p.add_argument("--colmap_dir",       required=True,
+                   help="COLMAP 場景目錄（含 sparse/）")
+    p.add_argument("--train_img_dir",    required=True,
+                   help="Inpainted 訓練圖片目錄")
+    p.add_argument("--deadmask_dir",     default=None,
+                   help="Dead zone mask 目錄（可選）")
+    p.add_argument("--output_gaussian",  required=True,
+                   help="訓練完成的 Gaussian 儲存路徑（.ply），例如 output/gaussians.ply")
+    p.add_argument("--total_iters",      type=int,   default=20000)
+    p.add_argument("--dead_weight",      type=float, default=0.3)
+    p.add_argument("--patch_size",       type=int,   default=256)
+    p.add_argument("--dw_warmup",        type=int,   default=1500,
+                   help="開始啟動不確定性感知的 Iteration")
+    p.add_argument("--dw_alpha",         type=float, default=7.0,
+                   help="懲罰係數，越大對幻覺殘差越嚴格")
+    train(p.parse_args())
