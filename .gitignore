@@ -174,3 +174,5 @@ purify_scene_ablation/
 
 *.bin
 *.ply
+
+*.out

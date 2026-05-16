@@ -13,8 +13,8 @@ from pathlib import Path
 scene = "bear"
 
 
-IMG_DIR  = Path(f"/home/robot-4090-3/paul/bear/input")
-MASK_DIR = Path(f"/home/robot-4090-3/paul/bear/target_object_mask")
+IMG_DIR  = Path(f"../data/Other-360/kitchen/images")
+MASK_DIR = Path(f"../data/Other-360/kitchen/object_masks")
 OUT_DIR  = Path(f"masked_train_{scene}")
 
 OUT_DIR.mkdir(parents=True, exist_ok=True)

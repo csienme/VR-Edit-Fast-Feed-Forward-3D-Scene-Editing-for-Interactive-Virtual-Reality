@@ -172,7 +172,10 @@ for SCENE in "${SCENES[@]}"; do
             --gt_img_dir     "${RGB_DIR}" \
             --render_img_dir "${RENDER_DIR}" \
             --mask_dir       "${RGB_DIR}/test_label" \
-            --output_dir     "${METRIC_ROOT}"
+            --output_dir     "${METRIC_ROOT}" \
+            --scene "${SCENE}"\
+            --exp_name "simplify_pipe"
+
     fi
 
     # ── Cleanup: 刪除 merged 暫存（只在全跑 all 模式下自動清除）────

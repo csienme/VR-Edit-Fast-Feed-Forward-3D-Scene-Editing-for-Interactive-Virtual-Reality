@@ -1,0 +1,16 @@
+===========================================
+Exp  : simplify_pipe
+Scene: 7
+===========================================
+[ Global Metrics ]
+   FID   : 47.0905
+   LPIPS : 0.4610
+   PSNR  : 16.8869
+   SSIM  : 0.1647
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 69.8824
+   m-LPIPS : 0.4178
+   m-PSNR  : 16.6515
+   m-SSIM  : 0.1103
+===========================================

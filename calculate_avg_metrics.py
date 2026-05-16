@@ -34,7 +34,7 @@ def parse_metrics_from_file(file_path):
     return metrics
 def main():
     # 設定基礎路徑
-    base_path = "metric_logs/spinnerf"
+    base_path = "metric_logs_besTT/spinnerf"
     all_metrics = {
         "FID": [],
         "LPIPS": [],

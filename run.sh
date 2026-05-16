@@ -90,7 +90,7 @@ if should_run 4; then
         --train_img_dir   "${COLMAP_DIR}/images" \
         --deadmask_dir    "${DEADMASK_DIR}" \
         --output_gaussian "${RENDER_DIR}/gaussians.pth" \
-        --total_iters     20000 \
+        --total_iters     40000 \
         --dead_weight     0.3 \
         --patch_size      256
 
@@ -98,7 +98,7 @@ if should_run 4; then
     python render.py \
         --nvs_pose          "${COLMAP_DIR}" \
         --gaussian_path     "${RENDER_DIR}/gaussians.pth" \
-        --render_output_dir "${RENDER_DIR}/renders"
+        --render_output_dir "${RENDER_DIR}"
 fi
 
 echo ""
