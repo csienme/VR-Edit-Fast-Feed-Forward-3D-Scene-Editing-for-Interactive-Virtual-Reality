@@ -441,7 +441,7 @@ def main():
                 output_img_dir = inpainted_dir
 
                 # 引用我們剛剛建立的新模組
-                from eval.generative_inpaint_module_360 import generative_multi_ref_propagation
+                from eval.inpaint_module import generative_multi_ref_propagation
 
                 # =================================================================
                 # 3DGIC 風格 Inpainting：每個 target 獨立用所有其他 view 當 donor

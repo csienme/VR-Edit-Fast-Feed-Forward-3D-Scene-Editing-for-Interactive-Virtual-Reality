@@ -92,8 +92,10 @@ if should_run 4; then
         --output_gaussian "${RENDER_DIR}/gaussians.pth" \
         --total_iters     40000 \
         --dead_weight     0.3 \
-        --patch_size      256
+        --patch_size      256 
+fi
 
+if should_run 5; then
     # Bug fix: gaussian_path 指向 train_.py 的輸出（RENDER_DIR），不是 COLMAP_DIR
     python render.py \
         --nvs_pose          "${COLMAP_DIR}" \

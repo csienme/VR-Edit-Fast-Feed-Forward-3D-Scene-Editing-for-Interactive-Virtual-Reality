@@ -671,7 +671,7 @@ def main():
 
                 output_img_dir = inpainted_dir
 
-                from eval.generative_inpaint_module_360 import generative_multi_ref_propagation
+                from eval.inpaint_module import generative_multi_ref_propagation
 
                 global_ref_cache = {}
                 from eval.dead_zone_inpainter import build_inpainter
@@ -743,6 +743,7 @@ def main():
                     )
                 elif args.export_colmap and args.generate != "all frame":
                     print("⚠️  COLMAP export 只在 --generate 'all frame' 時執行（需要所有視角）")
+
 
         # PAUL_MOD END
 
