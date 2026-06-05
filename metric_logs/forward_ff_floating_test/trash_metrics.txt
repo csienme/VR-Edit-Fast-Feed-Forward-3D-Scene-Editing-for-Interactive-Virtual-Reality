@@ -1,0 +1,16 @@
+===========================================
+Exp  : forward_ff_floating_test
+Scene: trash
+===========================================
+[ Global Metrics ]
+   FID   : 33.5215
+   LPIPS : 0.4566
+   PSNR  : 18.2738
+   SSIM  : 0.3632
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 253.2498
+   m-LPIPS : 0.5021
+   m-PSNR  : 17.7380
+   m-SSIM  : 0.2637
+===========================================

@@ -1,0 +1,16 @@
+===========================================
+Exp  : forward_ff_test
+Scene: 10
+===========================================
+[ Global Metrics ]
+   FID   : 41.5605
+   LPIPS : 0.4743
+   PSNR  : 13.5993
+   SSIM  : 0.2062
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 87.2873
+   m-LPIPS : 0.4367
+   m-PSNR  : 13.9853
+   m-SSIM  : 0.3374
+===========================================

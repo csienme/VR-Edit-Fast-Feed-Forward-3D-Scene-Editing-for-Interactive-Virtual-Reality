@@ -1,0 +1,16 @@
+{
+  "exp_name": "forward_ff_floating_test",
+  "scene": "1",
+  "global": {
+    "FID": 101.3395,
+    "LPIPS": 0.489984,
+    "PSNR": 14.288631,
+    "SSIM": 0.166461
+  },
+  "masked": {
+    "FID": 191.765259,
+    "LPIPS": 0.488093,
+    "PSNR": 14.356248,
+    "SSIM": 0.143931
+  }
+}

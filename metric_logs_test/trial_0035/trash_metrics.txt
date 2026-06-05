@@ -1,0 +1,16 @@
+===========================================
+Exp  : trial_0035
+Scene: trash
+===========================================
+[ Global Metrics ]
+   FID   : 31.5606
+   LPIPS : 0.4529
+   PSNR  : 18.3069
+   SSIM  : 0.3618
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 206.7478
+   m-LPIPS : 0.4915
+   m-PSNR  : 17.5416
+   m-SSIM  : 0.2505
+===========================================

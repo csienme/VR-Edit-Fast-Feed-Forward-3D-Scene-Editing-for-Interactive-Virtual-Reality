@@ -1,0 +1,16 @@
+===========================================
+Exp  : exp_test_bilat_off
+Scene: 3
+===========================================
+[ Global Metrics ]
+   FID   : 77.1478
+   LPIPS : 0.5641
+   PSNR  : 12.2900
+   SSIM  : 0.1045
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 137.2948
+   m-LPIPS : 0.5748
+   m-PSNR  : 12.4980
+   m-SSIM  : 0.0753
+===========================================

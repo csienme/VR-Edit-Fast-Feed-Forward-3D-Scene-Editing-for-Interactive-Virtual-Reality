@@ -1,0 +1,74 @@
+[
+  {
+    "trial": 0,
+    "trial_name": "trial_0000",
+    "J": 0.22397189500000003,
+    "params": {
+      "phot_z_thresh": 2.749080237694725,
+      "src_dilation_px": 7,
+      "tgt_dilation_px": 7
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 140.522342,
+      "LPIPS": 0.459913,
+      "PSNR": 15.729407,
+      "SSIM": 0.178913
+    },
+    "global": {
+      "FID": 61.892746,
+      "LPIPS": 0.474869,
+      "PSNR": 16.085283,
+      "SSIM": 0.203937
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0000.yaml"
+  },
+  {
+    "trial": 1,
+    "trial_name": "trial_0001",
+    "J": 0.377266215,
+    "params": {
+      "phot_z_thresh": 3.416145155592091,
+      "src_dilation_px": 11,
+      "tgt_dilation_px": 9
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 172.849933,
+      "LPIPS": 0.497554,
+      "PSNR": 15.63583,
+      "SSIM": 0.180332
+    },
+    "global": {
+      "FID": 58.204401,
+      "LPIPS": 0.473571,
+      "PSNR": 16.057108,
+      "SSIM": 0.20237
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0001.yaml"
+  },
+  {
+    "trial": 2,
+    "trial_name": "trial_0002",
+    "J": 0.402632475,
+    "params": {
+      "phot_z_thresh": 2.8638900372842313,
+      "src_dilation_px": 11,
+      "tgt_dilation_px": 7
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 178.179568,
+      "LPIPS": 0.496564,
+      "PSNR": 15.655291,
+      "SSIM": 0.182188
+    },
+    "global": {
+      "FID": 57.687183,
+      "LPIPS": 0.47329,
+      "PSNR": 16.054381,
+      "SSIM": 0.203053
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0002.yaml"
+  }
+]

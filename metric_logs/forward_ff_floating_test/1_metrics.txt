@@ -1,0 +1,16 @@
+===========================================
+Exp  : forward_ff_floating_test
+Scene: 1
+===========================================
+[ Global Metrics ]
+   FID   : 101.3395
+   LPIPS : 0.4900
+   PSNR  : 14.2886
+   SSIM  : 0.1665
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 191.7653
+   m-LPIPS : 0.4881
+   m-PSNR  : 14.3562
+   m-SSIM  : 0.1439
+===========================================

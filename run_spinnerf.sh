@@ -19,6 +19,10 @@
 #
 # 指定單一場景：
 #   SCENE="1" bash run_spinnerf.sh
+
+
+
+# CONFIG=configs/exp_lpips_sweep.yaml bash run_spinnerf.sh
 # ============================================================
 
 source "$(conda info --base)/etc/profile.d/conda.sh"
@@ -38,7 +42,12 @@ should_run () {
 DATASET_ROOT="../spinnerf-dataset"
 DATASET_NAME="$(basename "${DATASET_ROOT}")"
 OUTPUT_ROOT="./eval_results_custom"
-METRIC_ROOT="./metric_logs_test"
+METRIC_ROOT="./metric_logs"
+CONFIG_FILE="${CONFIG:-configs/exp_baseline.yaml}"   # ← 新增
+
+# 從 YAML 讀取 experiment.name 作為 metric 的 exp_name
+METRIC_EXP_NAME=$(python3 -c "import yaml; print(yaml.safe_load(open('${CONFIG_FILE}')).get('experiment',{}).get('name','spinnerf_eval'))" 2>/dev/null || echo "spinnerf_eval")
+echo "  Metric exp_name: ${METRIC_EXP_NAME}"
 
 # ── Scene selection ───────────────────────────────────────────
 if [ -n "$SCENE" ]; then
@@ -92,13 +101,10 @@ for SCENE in "${SCENES[@]}"; do
         echo ""
         echo "[${SCENE}] Step 1: VGGT inpainting (skip first 40 GT) + training COLMAP..."
         python eval/eval_iggt.py \
+            --config "${CONFIG_FILE}" \
             --data_path "${RGB_DIR}" \
             --mask_path "${MASK_DIR}" \
-            --enable_gen_3d_prop \
-            --generate "all frame" \
             --exp_name "${SCENE}" \
-            --inpaint_method sd \
-            --n_skip 40 \
             --output_root "${BASE_OUT}"
     fi
 
@@ -143,13 +149,11 @@ for SCENE in "${SCENES[@]}"; do
         mkdir -p "${RENDER_DIR}"
 
         python train.py \
+            --config          "${CONFIG_FILE}" \
             --colmap_dir      "${COLMAP_DIR}" \
             --train_img_dir   "${COLMAP_DIR}/images" \
             --deadmask_dir    "${DEADMASK_DIR}" \
-            --output_gaussian "${RENDER_DIR}/gaussians.pth" \
-            --total_iters     20000 \
-            --dead_weight     0.3 \
-            --patch_size      256
+            --output_gaussian "${RENDER_DIR}/gaussians.pth" 
     fi
 
     # ── Step 5: 3DGS 渲染（NVS test poses from Step 3）────────────
@@ -174,7 +178,7 @@ for SCENE in "${SCENES[@]}"; do
             --mask_dir       "${RGB_DIR}/test_label" \
             --output_dir     "${METRIC_ROOT}" \
             --scene "${SCENE}"\
-            --exp_name "simplify_pipe"
+            --exp_name       "${METRIC_EXP_NAME}"
 
     fi
 

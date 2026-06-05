@@ -1,0 +1,16 @@
+{
+  "exp_name": "revert_inpaint_test",
+  "scene": "trash",
+  "global": {
+    "FID": 33.665775,
+    "LPIPS": 0.455928,
+    "PSNR": 18.22555,
+    "SSIM": 0.363539
+  },
+  "masked": {
+    "FID": 225.861038,
+    "LPIPS": 0.504468,
+    "PSNR": 17.474959,
+    "SSIM": 0.261118
+  }
+}

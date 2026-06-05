@@ -1,0 +1,16 @@
+{
+  "exp_name": "test_fullsup_deadzone",
+  "scene": "9",
+  "global": {
+    "FID": 51.834236,
+    "LPIPS": 0.482278,
+    "PSNR": 17.883971,
+    "SSIM": 0.17091
+  },
+  "masked": {
+    "FID": 225.515625,
+    "LPIPS": 0.390606,
+    "PSNR": 17.224114,
+    "SSIM": 0.088514
+  }
+}

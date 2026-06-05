@@ -1,0 +1,16 @@
+===========================================
+Exp  : test_fullsup_deadzone
+Scene: 9
+===========================================
+[ Global Metrics ]
+   FID   : 51.8342
+   LPIPS : 0.4823
+   PSNR  : 17.8840
+   SSIM  : 0.1709
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 225.5156
+   m-LPIPS : 0.3906
+   m-PSNR  : 17.2241
+   m-SSIM  : 0.0885
+===========================================

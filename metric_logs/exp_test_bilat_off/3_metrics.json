@@ -1,0 +1,16 @@
+{
+  "exp_name": "exp_test_bilat_off",
+  "scene": "3",
+  "global": {
+    "FID": 77.147842,
+    "LPIPS": 0.564069,
+    "PSNR": 12.290024,
+    "SSIM": 0.104495
+  },
+  "masked": {
+    "FID": 137.294815,
+    "LPIPS": 0.574839,
+    "PSNR": 12.498012,
+    "SSIM": 0.075272
+  }
+}

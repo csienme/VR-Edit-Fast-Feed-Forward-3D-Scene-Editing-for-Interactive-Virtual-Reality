@@ -49,6 +49,59 @@ except ImportError:
     _TRIMESH_AVAILABLE = False
 
 
+
+
+
+
+
+
+# ==============================================================================
+# YAML Config Support  (CLI > YAML > Python defaults)
+# ==============================================================================
+def load_yaml_config(config_path):
+    """Load YAML config; return empty dict if path is None."""
+    if config_path is None:
+        return {}
+    import yaml
+    with open(config_path, 'r') as f:
+        return yaml.safe_load(f) or {}
+
+
+def apply_config_to_args(args, config, defaults):
+    """
+    Override args with YAML, then fall back to defaults.
+    CLI values (non-None) always win.
+    """
+    # Flatten nested YAML into single dict
+    flat = {}
+    for section, params in config.items():
+        if isinstance(params, dict):
+            flat.update(params)
+        else:
+            flat[section] = params
+    for key, default_val in defaults.items():
+        if getattr(args, key, None) is not None:
+            continue                           # CLI explicitly set → keep
+        if key in flat:
+            setattr(args, key, flat[key])      # YAML provided
+        else:
+            setattr(args, key, default_val)    # fall back to default
+    return args
+
+
+def dump_resolved_config(args, defaults, output_path):
+    """Save actually-used parameters to YAML for reproducibility."""
+    import yaml
+    used = {k: getattr(args, k) for k in defaults.keys()}
+    used['inpaint_method'] = args.inpaint_method
+    used['depth_conf_thresh'] = args.depth_conf_thresh
+    with open(output_path, 'w') as f:
+        yaml.dump({'eval_iggt': used}, f, default_flow_style=False, sort_keys=False)
+
+
+
+
+
 # ==============================================================================
 # COLMAP helper functions (ported from eval_custom_colmap_masked.py)
 # ==============================================================================
@@ -416,40 +469,25 @@ def main():
     # PAUL_MOD START
     # =====================================================================
     parser.add_argument(
-        "--enable_mask_prop",
-        action="store_true",
-        help="啟動 Mask 跨視角傳播驗證",
-    )
-    parser.add_argument(
         "--mask_path",
         type=Path,
         default=None,
         help="存放 Ground Truth Mask 的資料夾路徑 (例如 mini_test/label)",
     )
 
-    parser.add_argument(
-        "--enable_gen_3d_prop",
-        action="store_true",
-        help="啟動 3DGIC 範式: 2D 生成式修補 + 3D 昇維映射",
-    )
 
-    parser.add_argument(
-        "--generate",
-        type=str,
-        help="Specify 'all frame' to render all frames in the data_path.",
-    )
 
     parser.add_argument("--exp_name", type=str, help="exp_name.")
 
     parser.add_argument(
         "--n_skip",
         type=int,
-        default=0,
+        default=None,
         help="跳過前 N 張圖（字母排序後），只處理剩餘圖。例如 --n_skip 40 在100張目錄中只取後60張。",
     )  # mask_path 不適用 n_skip！
 
     parser.add_argument(
-        "--inpaint_method", default="cv2", choices=["cv2", "lama", "sd"]
+        "--inpaint_method", default="lama", choices=["cv2", "lama", "sd"]
     )
 
     parser.add_argument(
@@ -460,23 +498,96 @@ def main():
     )
 
     # [新增] 控制是否在 Step 1 就產出 COLMAP（預設開啟）
-    parser.add_argument(
-        "--export_colmap",
-        action="store_true",
-        default=True,
-        help="在 inpainting 完成後直接匯出 COLMAP（取代原本的 Step 2）",
-    )
+
     parser.add_argument(
         "--colmap_max_points",
         type=int,
         default=100_000,
         help="COLMAP 點雲最大點數",
     )
+
+
+
+
+    # =====================================================================
+    # YAML config & extracted parameters (all default=None for sentinel detection)
+    # =====================================================================
+    parser.add_argument("--config", type=str, default=None,
+                        help="YAML config file for experiment parameters.")
+    parser.add_argument("--seed", type=int, default=None)
+
+    # --- Pull harvest geometry & validation ---
+    parser.add_argument("--src_dilation_px",  type=int,   default=None)
+    parser.add_argument("--tgt_dilation_px",  type=int,   default=None)
+    parser.add_argument("--phot_z_thresh",    type=float, default=None)
+    parser.add_argument("--phot_ring_px",     type=int,   default=None)
+    parser.add_argument("--local_bg_radius",  type=int,   default=None)
+    parser.add_argument("--min_trusted_blob", type=int,   default=None)
+    parser.add_argument("--bilateral_d",      type=int,   default=None)
+    parser.add_argument("--bilateral_sigma",  type=float, default=None)
+
+
+
+    parser.add_argument("--local_bg_extra_dil", type=int, default=None,
+                        help="Extra dilation for local background sampling (avoids shadow zone).")
+
+
+    # --- Shadow detection ---
+    parser.add_argument("--shadow_search_px", type=int,   default=None)
+    parser.add_argument("--shadow_thresh_k",  type=float, default=None)
+    parser.add_argument("--min_shadow_blob",  type=int,   default=None)
+    parser.add_argument("--bright_untrust_k", type=float, default=None)
+
+
+
     # =====================================================================
     # PAUL_MOD END
+    # =====================================================================
+
+
+
+
 
     args = parser.parse_args()
-    torch.manual_seed(33)
+    # ==============================================================================
+    # Apply YAML config + defaults
+    # ==============================================================================
+    EVAL_IGGT_DEFAULTS = {
+        'seed':              33,
+        'n_skip':            0,
+        'inpaint_method':    'sd',
+        'src_dilation_px':   11,
+        'tgt_dilation_px':   5,
+        'phot_z_thresh':     2.5,
+        'phot_ring_px':      20,
+        'local_bg_radius':   20,
+        'local_bg_extra_dil': 30,         # ← 新增
+        'min_trusted_blob':  1000,
+        'bilateral_d':       15,
+        'bilateral_sigma':   30.0,
+        'shadow_search_px':  100,
+        'shadow_thresh_k':   4.0,
+        'min_shadow_blob':   150,
+        'bright_untrust_k':  2.0,
+    }
+    config = load_yaml_config(args.config)
+    args = apply_config_to_args(args, config, EVAL_IGGT_DEFAULTS)
+
+    torch.manual_seed(args.seed)        # 取代原本的 torch.manual_seed(33)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     # Check data path exists
     if not args.data_path.exists():
@@ -517,6 +628,8 @@ def main():
         output_scene_dir = args.output_path / dataset_name / scene_name
 
     output_scene_dir.mkdir(parents=True, exist_ok=True)
+    dump_resolved_config(args, EVAL_IGGT_DEFAULTS, output_scene_dir / "eval_iggt_resolved.yaml")
+
 
     # 子資料夾
     inpainted_dir = output_scene_dir / "inpainted"
@@ -663,86 +776,98 @@ def main():
         # ==================================================
         # [新增] 執行 Generative 3D Inpainting (3DGIC Pipeline)
         # ==================================================
-        if args.enable_gen_3d_prop:
-            if args.mask_path is None or not args.mask_path.exists():
-                print("❌ 錯誤: 啟動了 --enable_gen_3d_prop 但未提供 --mask_path")
-            else:
-                print(f"\n🚀 啟動 Generative 3D Inpainting 映射")
 
-                output_img_dir = inpainted_dir
+        if args.mask_path is None or not args.mask_path.exists():
+            print("❌ 錯誤: 啟動了 --enable_gen_3d_prop 但未提供 --mask_path")
+        else:
+            print(f"\n🚀 啟動 Generative 3D Inpainting 映射")
 
-                from eval.inpaint_module import generative_multi_ref_propagation
+            output_img_dir = inpainted_dir
 
-                global_ref_cache = {}
-                from eval.dead_zone_inpainter import build_inpainter
-                global_ref_cache["_src_dilation_px"] = 11
-                global_ref_cache["_tgt_dilation_px"] = 5
-                global_ref_cache["_use_poisson"]     = False
-                global_ref_cache["_phot_z_thresh"]   = 2.5
-                global_ref_cache["_phot_ring_px"]    = 20
-                global_ref_cache["_local_bg_radius"] = 20
+            from eval.inpaint_module import generative_multi_ref_propagation
 
-                global_ref_cache["_debug_dump_dir"]       = "debug_dump"
-                global_ref_cache["_debug_target_indices"] = [0]
-                global_ref_cache["_min_trusted_blob"] = 1000
-                global_ref_cache["_bilateral_d"]      = 15
-                global_ref_cache["_bilateral_sigma"]  = 30.0
-                global_ref_cache["_inpainter"] = build_inpainter(args.inpaint_method)
+            global_ref_cache = {}
+            from eval.dead_zone_inpainter import build_inpainter
 
-                # v5 Shadow Detection params
-                global_ref_cache["_shadow_search_px"]  = 100
-                global_ref_cache["_shadow_thresh_k"]   = 4.0
-                global_ref_cache["_min_shadow_blob"]   = 150
-                global_ref_cache["_bright_untrust_k"]  = 2.0
 
-                ALL_FRAMES = len(image_paths)
-                if args.generate == "all frame":
-                    print("generate all frame...")
-                    target_indices_to_test = list(range(ALL_FRAMES))
-                else:
-                    target_indices_to_test = input(
-                        "請輸入想測試/修補的 Target 視角 Index（逗號分隔，例如 0,27,56）: "
-                    )
-                    target_indices_to_test = [int(x) for x in target_indices_to_test.split(",")]
+            # Pull Pixel geometry
+            global_ref_cache["_src_dilation_px"] = args.src_dilation_px
+            global_ref_cache["_tgt_dilation_px"] = args.tgt_dilation_px
 
-                print(f"\n🚀 [3DGIC] 對 {len(target_indices_to_test)} 個 target 執行 inpainting...")
-                for tgt_idx in target_indices_to_test:
-                    red_area, _ = generative_multi_ref_propagation(
-                        ref_indices=[],
-                        target_idx=tgt_idx,
-                        image_paths=image_paths,
-                        mask_dir=args.mask_path,
-                        raw_depth_maps=raw_depth_maps,
-                        all_cam_to_world_mat=all_cam_to_world_mat,
-                        intrinsics=intrinsic_np,
-                        output_dir=output_img_dir,
-                        ref_cache=global_ref_cache,
-                        mask_paths=mask_path_list if mask_path_list else None,
-                    )
-                    print(f"   ✅ V_{tgt_idx} 完成 (refined hole={red_area} px)")
 
-                print(f"\n🏆 全部 {len(target_indices_to_test)} 個 target 處理完成")
-                print("=" * 60 + "\n")
 
-                # ==================================================
-                # [新增 v6] Inpainting 結束後直接匯出 COLMAP
-                # 取代原本 bash 的 Step 2 + Step 3
-                # ==================================================
-                if args.export_colmap and args.generate == "all frame":
-                    export_colmap_from_vggt(
-                        extrinsic_np      = extrinsic_np,
-                        intrinsic_np      = intrinsic_np,
-                        raw_depth_maps    = raw_depth_maps,
-                        depth_conf_np     = depth_conf_np,
-                        vgg_input         = vgg_input,
-                        image_paths       = image_paths,      # 原始圖路徑（算 original_coords 用）
-                        inpainted_dir     = inpainted_dir,    # inpainted_*.png 在這裡
-                        colmap_dir        = colmap_dir,       # 輸出到這裡
-                        depth_conf_thresh = args.depth_conf_thresh,
-                        max_points        = args.colmap_max_points,
-                    )
-                elif args.export_colmap and args.generate != "all frame":
-                    print("⚠️  COLMAP export 只在 --generate 'all frame' 時執行（需要所有視角）")
+            # Photometric validation
+            global_ref_cache["_phot_z_thresh"]   = args.phot_z_thresh
+            global_ref_cache["_phot_ring_px"]    = args.phot_ring_px
+            global_ref_cache["_local_bg_radius"] = args.local_bg_radius
+            global_ref_cache["_local_bg_extra_dil"] = args.local_bg_extra_dil   # ← 新增
+            
+            
+            # Spatial coherence & smoothing
+            global_ref_cache["_min_trusted_blob"] = args.min_trusted_blob
+            global_ref_cache["_bilateral_d"]      = args.bilateral_d
+            global_ref_cache["_bilateral_sigma"]  = args.bilateral_sigma
+
+
+            # Shadow detection (v5)
+            global_ref_cache["_shadow_search_px"] = args.shadow_search_px
+            global_ref_cache["_shadow_thresh_k"]  = args.shadow_thresh_k
+            global_ref_cache["_min_shadow_blob"]  = args.min_shadow_blob
+            global_ref_cache["_bright_untrust_k"] = args.bright_untrust_k
+
+            
+            # Hardcoded
+            global_ref_cache["_use_poisson"]     = False
+            global_ref_cache["_debug_dump_dir"]  = "debug_dump"
+            global_ref_cache["_debug_target_indices"] = [0]
+
+            #Inpainter
+            global_ref_cache["_inpainter"] = build_inpainter(args.inpaint_method)
+
+
+
+            ALL_FRAMES = len(image_paths)
+
+            print("generate all frame...")
+            target_indices_to_test = list(range(ALL_FRAMES))
+
+
+            print(f"\n🚀對 {len(target_indices_to_test)} 個 target 執行 inpainting...")
+            for tgt_idx in target_indices_to_test:
+                red_area, _ = generative_multi_ref_propagation(
+                    ref_indices=[],
+                    target_idx=tgt_idx,
+                    image_paths=image_paths,
+                    mask_dir=args.mask_path,
+                    raw_depth_maps=raw_depth_maps,
+                    all_cam_to_world_mat=all_cam_to_world_mat,
+                    intrinsics=intrinsic_np,
+                    output_dir=output_img_dir,
+                    ref_cache=global_ref_cache,
+                    mask_paths=mask_path_list if mask_path_list else None,
+                )
+                print(f"   ✅ V_{tgt_idx} 完成 (refined hole={red_area} px)")
+
+            print(f"\n🏆 全部 {len(target_indices_to_test)} 個 target 處理完成")
+            print("=" * 60 + "\n")
+
+            # ==================================================
+            # [新增 v6] Inpainting 結束後直接匯出 COLMAP
+            # 取代原本 bash 的 Step 2 + Step 3
+            # ==================================================
+
+            export_colmap_from_vggt(
+                extrinsic_np      = extrinsic_np,
+                intrinsic_np      = intrinsic_np,
+                raw_depth_maps    = raw_depth_maps,
+                depth_conf_np     = depth_conf_np,
+                vgg_input         = vgg_input,
+                image_paths       = image_paths,      # 原始圖路徑（算 original_coords 用）
+                inpainted_dir     = inpainted_dir,    # inpainted_*.png 在這裡
+                colmap_dir        = colmap_dir,       # 輸出到這裡
+                depth_conf_thresh = args.depth_conf_thresh,
+                max_points        = args.colmap_max_points,
+            )
 
 
         # PAUL_MOD END

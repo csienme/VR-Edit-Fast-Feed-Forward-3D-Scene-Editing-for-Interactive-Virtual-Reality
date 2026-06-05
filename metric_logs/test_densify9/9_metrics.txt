@@ -1,0 +1,16 @@
+===========================================
+Exp  : test_densify9
+Scene: 9
+===========================================
+[ Global Metrics ]
+   FID   : 52.3397
+   LPIPS : 0.4552
+   PSNR  : 18.2242
+   SSIM  : 0.1762
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 149.3194
+   m-LPIPS : 0.4227
+   m-PSNR  : 17.5423
+   m-SSIM  : 0.0939
+===========================================

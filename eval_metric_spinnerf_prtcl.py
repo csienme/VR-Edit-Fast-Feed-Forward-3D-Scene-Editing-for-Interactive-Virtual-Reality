@@ -1,4 +1,19 @@
+"""
+eval_metric_spinnerf_prtcl.py
+==============================
+Per-scene metric evaluation (SPIn-NeRF protocol).
+
+Changes from original:
+  - [NEW] Saves {scene}_metrics.json alongside {scene}_metrics.txt
+          JSON is machine-readable and used by calculate_avg_metrics.py + grid_search.py
+
+Output structure:
+  {output_dir}/{exp_name}/{scene}_metrics.txt   ← human-readable (unchanged)
+  {output_dir}/{exp_name}/{scene}_metrics.json  ← machine-readable (NEW)
+"""
+
 import os
+import json
 import torch
 import cv2
 import numpy as np
@@ -9,6 +24,7 @@ import lpips
 from skimage.metrics import peak_signal_noise_ratio as compute_psnr
 from skimage.metrics import structural_similarity as compute_ssim
 from torchmetrics.image.fid import FrechetInceptionDistance
+
 
 def get_bbox_from_mask(mask_tensor):
     mask_np = (mask_tensor.squeeze().cpu().numpy() * 255).astype(np.uint8)
@@ -26,6 +42,7 @@ def get_bbox_from_mask(mask_tensor):
     cmax = min(W, x + w + expand_c)
     return rmin, rmax, cmin, cmax
 
+
 def load_image_tensor(path, is_mask=False):
     if is_mask:
         img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
@@ -36,6 +53,7 @@ def load_image_tensor(path, is_mask=False):
     else:
         img = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2RGB)
         return torch.tensor(img, dtype=torch.float32).permute(2, 0, 1) / 255.0
+
 
 def evaluate_metrics(args):
     print(f"Evaluating: exp={args.exp_name}, scene={args.scene}")
@@ -74,15 +92,15 @@ def evaluate_metrics(args):
 
         _, gt_h, gt_w = gt_tensor.shape
         if pred_tensor.shape[1] != gt_h or pred_tensor.shape[2] != gt_w:
-            pred_np = pred_tensor.permute(1,2,0).numpy()
+            pred_np = pred_tensor.permute(1, 2, 0).numpy()
             pred_np = cv2.resize(pred_np, (gt_w, gt_h), interpolation=cv2.INTER_LINEAR)
-            pred_tensor = torch.tensor(pred_np, dtype=torch.float32).permute(2,0,1)
+            pred_tensor = torch.tensor(pred_np, dtype=torch.float32).permute(2, 0, 1)
         if mask_tensor.shape[1] != gt_h or mask_tensor.shape[2] != gt_w:
             mask_np = cv2.resize(mask_tensor.squeeze(0).numpy(), (gt_w, gt_h), interpolation=cv2.INTER_NEAREST)
             mask_tensor = torch.tensor(mask_np, dtype=torch.float32).unsqueeze(0)
 
-        gt_np   = gt_tensor.permute(1,2,0).numpy()
-        pred_np = pred_tensor.permute(1,2,0).numpy()
+        gt_np   = gt_tensor.permute(1, 2, 0).numpy()
+        pred_np = pred_tensor.permute(1, 2, 0).numpy()
 
         # Global
         psnr_global_list.append(compute_psnr(gt_np, pred_np, data_range=1.0))
@@ -97,14 +115,15 @@ def evaluate_metrics(args):
         rmin, rmax, cmin, cmax = get_bbox_from_mask(mask_tensor)
         gt_crop   = gt_tensor[:,   rmin:rmax, cmin:cmax]
         pred_crop = pred_tensor[:, rmin:rmax, cmin:cmax]
-        gt_crop_np   = gt_crop.permute(1,2,0).numpy()
-        pred_crop_np = pred_crop.permute(1,2,0).numpy()
+        gt_crop_np   = gt_crop.permute(1, 2, 0).numpy()
+        pred_crop_np = pred_crop.permute(1, 2, 0).numpy()
 
         psnr_masked_list.append(compute_psnr(gt_crop_np, pred_crop_np, data_range=1.0))
         win_size = min(7, gt_crop_np.shape[0], gt_crop_np.shape[1])
         win_size = win_size if win_size % 2 == 1 else win_size - 1
         if win_size >= 3:
-            ssim_masked_list.append(compute_ssim(gt_crop_np, pred_crop_np, data_range=1.0, channel_axis=2, win_size=win_size))
+            ssim_masked_list.append(compute_ssim(
+                gt_crop_np, pred_crop_np, data_range=1.0, channel_axis=2, win_size=win_size))
         else:
             ssim_masked_list.append(0.0)
         lpips_in_pred_crop = (pred_crop * 2.0 - 1.0).unsqueeze(0).to(device)
@@ -116,11 +135,12 @@ def evaluate_metrics(args):
     fid_score_global = fid_global.compute().item()
     fid_score_masked = fid_masked.compute().item()
 
-    # Save to metric_logs/{exp_name}/{scene}/metrics.txt
+    # ── Save directory ──────────────────────────────────────────────────────────
     save_dir = os.path.join(args.output_dir, args.exp_name)
     os.makedirs(save_dir, exist_ok=True)
-    txt_log_path = os.path.join(save_dir, f"{args.scene}_metrics.txt")
 
+    # ── [UNCHANGED] Save .txt for human reading ─────────────────────────────────
+    txt_log_path = os.path.join(save_dir, f"{args.scene}_metrics.txt")
     log_content = (
         "===========================================\n"
         f"Exp  : {args.exp_name}\n"
@@ -138,11 +158,34 @@ def evaluate_metrics(args):
         f"   m-SSIM  : {np.mean(ssim_masked_list):.4f}\n"
         "===========================================\n"
     )
-
     print("\n" + log_content)
     with open(txt_log_path, "w") as f:
         f.write(log_content)
-    print(f"Saved to: {txt_log_path}")
+
+    # ── [NEW] Save .json for machine reading (grid_search.py reads this) ────────
+    result_dict = {
+        "exp_name": args.exp_name,
+        "scene":    args.scene,
+        "global": {
+            "FID":   round(fid_score_global, 6),
+            "LPIPS": round(float(np.mean(lpips_global_list)), 6),
+            "PSNR":  round(float(np.mean(psnr_global_list)),  6),
+            "SSIM":  round(float(np.mean(ssim_global_list)),  6),
+        },
+        "masked": {
+            "FID":   round(fid_score_masked, 6),
+            "LPIPS": round(float(np.mean(lpips_masked_list)), 6),
+            "PSNR":  round(float(np.mean(psnr_masked_list)),  6),
+            "SSIM":  round(float(np.mean(ssim_masked_list)),  6),
+        },
+    }
+    json_path = os.path.join(save_dir, f"{args.scene}_metrics.json")
+    with open(json_path, "w") as f:
+        json.dump(result_dict, f, indent=2)
+
+    print(f"Saved txt  → {txt_log_path}")
+    print(f"Saved json → {json_path}")
+
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -152,7 +195,7 @@ if __name__ == "__main__":
     parser.add_argument("--output_dir",     type=str, required=True,
                         help="Root output dir, e.g. metric_logs/")
     parser.add_argument("--exp_name",       type=str, required=True,
-                        help="Experiment name, e.g. spinnerf")
+                        help="Experiment name, e.g. trial_0001")
     parser.add_argument("--scene",          type=str, required=True,
                         help="Scene name, e.g. 1")
     args = parser.parse_args()

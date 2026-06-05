@@ -1,0 +1,92 @@
+# ============================================================================
+# Experiment Config — 3D Scene Inpainting Pipeline
+# ============================================================================
+# Usage:
+#   python eval/eval_iggt.py --config configs/exp_baseline.yaml ...
+#   python train.py          --config configs/exp_baseline.yaml ...
+#
+# Precedence: CLI args > YAML config > Python defaults
+# ============================================================================
+
+experiment:
+  name: baseline_v0
+  notes: "Default parameters from existing pipeline, used as grid search anchor"
+  scene: all                    # SPIn-NeRF scene name
+  dataset: spinnerf              # spinnerf | other-360
+  tags: [baseline, lpips-focus]
+
+
+# ============================================================================
+# Stage 1 — VGGT Inference + Pull Harvesting (eval_iggt.py)
+# ============================================================================
+eval_iggt:
+  seed: 33
+  n_skip: 40
+
+  inpaint_method: "sd"
+
+  # ── Pull harvest geometry ──
+  src_dilation_px: 11             # Source mask dilation (shadow buffer)
+  tgt_dilation_px: 5              # Target mask dilation
+
+  # ── Photometric validation (★ LPIPS-sensitive) ──
+  phot_z_thresh: 2.5              # z-score threshold for outlier rejection
+                                  #   Higher = more lenient (keep noisy pulls)
+                                  #   Lower  = stricter (reject borderline pixels)
+                                  #   Sweep: [2.0, 2.5, 3.0, 3.5]
+  phot_ring_px: 20                # Ring radius for photometric stats
+  local_bg_radius: 20             # Local background TELEA inpaint radius
+  local_bg_extra_dil: 30          # Extra dilation to push sampling past shadow zone
+
+  # ── Spatial coherence & smoothing (★ LPIPS-sensitive) ──
+  min_trusted_blob: 1000          # Min connected-component size for trusted pixels
+                                  #   Sweep: [500, 1000, 2000]
+  bilateral_d: 15                 # Bilateral filter diameter (0 = disabled)
+                                  #   Sweep: [11, 15, 19]
+  bilateral_sigma: 30.0           # Bilateral filter sigma (color+space)
+                                  #   Sweep: [20.0, 30.0, 40.0]
+
+  # ── Shadow detection (v5) ──
+  shadow_search_px: 100           # M1: search ring outside mask
+  shadow_thresh_k: 4.0            # M1: shadow brightness threshold (lower = aggressive)
+  min_shadow_blob: 150            # M1: min shadow connected component
+  bright_untrust_k: 2.0           # M2: target-side brightness untrust
+
+
+# ============================================================================
+# Stage 2 — 3DGS Training (train.py)
+# ============================================================================
+train:
+  seed: 33
+
+  # ── Schedule ──
+  total_iters: 20000
+  dead_weight: 0.3                # w_base for dead-zone pixels (vs 1.0 elsewhere)
+  patch_size: 256                 # LPIPS patch sampling size
+
+  # ── Dynamic uncertainty weighting ──
+  dw_warmup: 1500                 # Iter to activate w_dyn
+  dw_alpha: 7.0                   # Residual penalty (higher = more aggressive)
+                                  #   Sweep: [5.0, 7.0, 10.0]
+
+  # ── Loss weights (★★★ TOP LPIPS knobs) ──
+  loss_l1_w: 0.70                 # L1 loss weight
+  loss_ssim_w: 0.15               # SSIM loss weight
+  loss_lpips_w: 0.15              # LPIPS loss weight
+                                  #   Primary sweep for LPIPS optimization:
+                                  #   l1/ssim/lpips combos:
+                                  #     (0.70, 0.15, 0.15) baseline
+                                  #     (0.60, 0.15, 0.25) LPIPS-heavy
+                                  #     (0.50, 0.15, 0.35) LPIPS-aggressive
+
+  # ── Densification & pruning ──
+  densify_from: 500               # When to start densification
+  densify_until: 12000            # When to stop densification (★ affects detail)
+                                  #   Sweep: [12000, 15000, 18000]
+  densify_interval: 100           # Densification frequency (every N iters)
+  max_gaussians: 2500000          # Hard cap on Gaussian count
+  max_grad: 0.0006                # Gradient threshold for densification
+                                  #   Lower = more Gaussians = more detail
+                                  #   Sweep: [0.0004, 0.0006, 0.0008]
+  min_opacity_prune: 0.05         # Opacity threshold for pruning
+  reset_iters: "3000,8000"        # Opacity reset checkpoints (comma-separated)

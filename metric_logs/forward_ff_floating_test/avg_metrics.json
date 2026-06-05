@@ -1,0 +1,28 @@
+{
+  "exp_name": "forward_ff_floating_test",
+  "n_scenes": 10,
+  "scenes_found": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "7",
+    "9",
+    "10",
+    "12",
+    "book",
+    "trash"
+  ],
+  "global": {
+    "FID": 58.97929,
+    "LPIPS": 0.482509,
+    "PSNR": 16.021799,
+    "SSIM": 0.207483
+  },
+  "masked": {
+    "FID": 145.613618,
+    "LPIPS": 0.467143,
+    "PSNR": 15.794519,
+    "SSIM": 0.187143
+  }
+}
