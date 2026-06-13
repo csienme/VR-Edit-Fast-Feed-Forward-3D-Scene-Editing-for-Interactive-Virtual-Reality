@@ -1,0 +1,16 @@
+===========================================
+Exp  : golden_467
+Scene: book
+===========================================
+[ Global Metrics ]
+   FID   : 50.1564
+   LPIPS : 0.4524
+   PSNR  : 17.7149
+   SSIM  : 0.4007
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 107.5775
+   m-LPIPS : 0.4242
+   m-PSNR  : 18.0636
+   m-SSIM  : 0.2869
+===========================================

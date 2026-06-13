@@ -3,14 +3,14 @@ Exp  : trial_0022
 Scene: 7
 ===========================================
 [ Global Metrics ]
-   FID   : 42.7408
-   LPIPS : 0.4645
-   PSNR  : 17.0195
-   SSIM  : 0.1655
+   FID   : 38.3045
+   LPIPS : 0.4627
+   PSNR  : 17.0881
+   SSIM  : 0.1678
 
 [ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
-   m-FID   : 64.2563
-   m-LPIPS : 0.4135
-   m-PSNR  : 16.6949
-   m-SSIM  : 0.1059
+   m-FID   : 36.5063
+   m-LPIPS : 0.4521
+   m-PSNR  : 16.6111
+   m-SSIM  : 0.1035
 ===========================================

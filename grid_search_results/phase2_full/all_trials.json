@@ -70,5 +70,533 @@
       "SSIM": 0.203053
     },
     "config_path": "grid_search_results/phase2_full/configs/trial_0002.yaml"
+  },
+  {
+    "trial": 3,
+    "trial_name": "trial_0003",
+    "J": 0.40383581,
+    "params": {
+      "phot_z_thresh": 3.0284688768272234,
+      "src_dilation_px": 15,
+      "tgt_dilation_px": 7
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 178.62786,
+      "LPIPS": 0.495992,
+      "PSNR": 15.686366,
+      "SSIM": 0.183251
+    },
+    "global": {
+      "FID": 57.592171,
+      "LPIPS": 0.473049,
+      "PSNR": 16.037274,
+      "SSIM": 0.202777
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0003.yaml"
+  },
+  {
+    "trial": 4,
+    "trial_name": "trial_0004",
+    "J": 0.41935215499999995,
+    "params": {
+      "phot_z_thresh": 2.609227538346741,
+      "src_dilation_px": 11,
+      "tgt_dilation_px": 7
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 181.724323,
+      "LPIPS": 0.49626,
+      "PSNR": 15.701964,
+      "SSIM": 0.182496
+    },
+    "global": {
+      "FID": 58.330708,
+      "LPIPS": 0.473152,
+      "PSNR": 16.059,
+      "SSIM": 0.20307
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0004.yaml"
+  },
+  {
+    "trial": 5,
+    "trial_name": "trial_0005",
+    "J": 0.370705235,
+    "params": {
+      "phot_z_thresh": 3.325044568707964,
+      "src_dilation_px": 15,
+      "tgt_dilation_px": 3
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 172.519437,
+      "LPIPS": 0.491432,
+      "PSNR": 15.55493,
+      "SSIM": 0.183183
+    },
+    "global": {
+      "FID": 56.828644,
+      "LPIPS": 0.47271,
+      "PSNR": 16.03316,
+      "SSIM": 0.203155
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0005.yaml"
+  },
+  {
+    "trial": 6,
+    "trial_name": "trial_0006",
+    "J": 0.38574378500000006,
+    "params": {
+      "phot_z_thresh": 3.19579995762217,
+      "src_dilation_px": 7,
+      "tgt_dilation_px": 9
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 174.165144,
+      "LPIPS": 0.498848,
+      "PSNR": 15.595329,
+      "SSIM": 0.17925
+    },
+    "global": {
+      "FID": 56.948839,
+      "LPIPS": 0.4727,
+      "PSNR": 16.049774,
+      "SSIM": 0.203099
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0006.yaml"
+  },
+  {
+    "trial": 7,
+    "trial_name": "trial_0007",
+    "J": 0.39996841000000005,
+    "params": {
+      "phot_z_thresh": 2.713506653387179,
+      "src_dilation_px": 19,
+      "tgt_dilation_px": 5
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 178.102912,
+      "LPIPS": 0.493949,
+      "PSNR": 15.63301,
+      "SSIM": 0.183082
+    },
+    "global": {
+      "FID": 57.064482,
+      "LPIPS": 0.473549,
+      "PSNR": 16.012968,
+      "SSIM": 0.202484
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0007.yaml"
+  },
+  {
+    "trial": 8,
+    "trial_name": "trial_0008",
+    "J": 0.40884615499999993,
+    "params": {
+      "phot_z_thresh": 2.011044234247205,
+      "src_dilation_px": 7,
+      "tgt_dilation_px": 9
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 179.817154,
+      "LPIPS": 0.496716,
+      "PSNR": 15.797041,
+      "SSIM": 0.18391
+    },
+    "global": {
+      "FID": 61.239805,
+      "LPIPS": 0.473894,
+      "PSNR": 16.066062,
+      "SSIM": 0.203395
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0008.yaml"
+  },
+  {
+    "trial": 9,
+    "trial_name": "trial_0009",
+    "J": 0.3920789800000001,
+    "params": {
+      "phot_z_thresh": 3.246596253655116,
+      "src_dilation_px": 7,
+      "tgt_dilation_px": 7
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 175.72826,
+      "LPIPS": 0.49767,
+      "PSNR": 15.615488,
+      "SSIM": 0.180394
+    },
+    "global": {
+      "FID": 58.595974,
+      "LPIPS": 0.473917,
+      "PSNR": 16.047439,
+      "SSIM": 0.202578
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0009.yaml"
+  },
+  {
+    "trial": 10,
+    "trial_name": "trial_0010",
+    "J": 0.414366825,
+    "params": {
+      "phot_z_thresh": 2.2391884918766034,
+      "src_dilation_px": 19,
+      "tgt_dilation_px": 5
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 180.632442,
+      "LPIPS": 0.496161,
+      "PSNR": 15.663759,
+      "SSIM": 0.183828
+    },
+    "global": {
+      "FID": 58.928011,
+      "LPIPS": 0.473577,
+      "PSNR": 16.035552,
+      "SSIM": 0.202706
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0010.yaml"
+  },
+  {
+    "trial": 11,
+    "trial_name": "trial_0011",
+    "J": 0.3765145449999999,
+    "params": {
+      "phot_z_thresh": 2.215782853986609,
+      "src_dilation_px": 11,
+      "tgt_dilation_px": 3
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 173.456,
+      "LPIPS": 0.493083,
+      "PSNR": 15.589897,
+      "SSIM": 0.183517
+    },
+    "global": {
+      "FID": 57.780903,
+      "LPIPS": 0.473006,
+      "PSNR": 16.040672,
+      "SSIM": 0.203068
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0011.yaml"
+  },
+  {
+    "trial": 12,
+    "trial_name": "trial_0012",
+    "J": 0.393814965,
+    "params": {
+      "phot_z_thresh": 2.457596330983245,
+      "src_dilation_px": 19,
+      "tgt_dilation_px": 7
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 176.815476,
+      "LPIPS": 0.495252,
+      "PSNR": 15.700961,
+      "SSIM": 0.183526
+    },
+    "global": {
+      "FID": 58.430024,
+      "LPIPS": 0.472936,
+      "PSNR": 16.034607,
+      "SSIM": 0.20285
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0012.yaml"
+  },
+  {
+    "trial": 13,
+    "trial_name": "trial_0013",
+    "J": 0.404318915,
+    "params": {
+      "phot_z_thresh": 2.3731401177720715,
+      "src_dilation_px": 19,
+      "tgt_dilation_px": 9
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 178.784336,
+      "LPIPS": 0.497035,
+      "PSNR": 15.775851,
+      "SSIM": 0.183632
+    },
+    "global": {
+      "FID": 56.826125,
+      "LPIPS": 0.472648,
+      "PSNR": 16.078393,
+      "SSIM": 0.203232
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0013.yaml"
+  },
+  {
+    "trial": 14,
+    "trial_name": "trial_0014",
+    "J": 0.37473410500000004,
+    "params": {
+      "phot_z_thresh": 3.6360295318449865,
+      "src_dilation_px": 7,
+      "tgt_dilation_px": 9
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 171.763441,
+      "LPIPS": 0.499358,
+      "PSNR": 15.56274,
+      "SSIM": 0.179254
+    },
+    "global": {
+      "FID": 56.476689,
+      "LPIPS": 0.472896,
+      "PSNR": 16.047581,
+      "SSIM": 0.20276
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0014.yaml"
+  },
+  {
+    "trial": 15,
+    "trial_name": "trial_0015",
+    "J": 0.38160780000000005,
+    "params": {
+      "phot_z_thresh": 3.8902730884607735,
+      "src_dilation_px": 15,
+      "tgt_dilation_px": 3
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 174.290291,
+      "LPIPS": 0.493115,
+      "PSNR": 15.530577,
+      "SSIM": 0.182253
+    },
+    "global": {
+      "FID": 56.811633,
+      "LPIPS": 0.47217,
+      "PSNR": 16.017824,
+      "SSIM": 0.203046
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0015.yaml"
+  },
+  {
+    "trial": 16,
+    "trial_name": "trial_0016",
+    "J": 0.39159906,
+    "params": {
+      "phot_z_thresh": 3.4763176718574424,
+      "src_dilation_px": 15,
+      "tgt_dilation_px": 3
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 176.385832,
+      "LPIPS": 0.492403,
+      "PSNR": 15.51554,
+      "SSIM": 0.182551
+    },
+    "global": {
+      "FID": 56.852705,
+      "LPIPS": 0.473219,
+      "PSNR": 16.034284,
+      "SSIM": 0.202709
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0016.yaml"
+  },
+  {
+    "trial": 17,
+    "trial_name": "trial_0017",
+    "J": 0.42901836000000004,
+    "params": {
+      "phot_z_thresh": 2.957442339314337,
+      "src_dilation_px": 15,
+      "tgt_dilation_px": 3
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 184.158276,
+      "LPIPS": 0.491859,
+      "PSNR": 15.575468,
+      "SSIM": 0.18404
+    },
+    "global": {
+      "FID": 60.89534,
+      "LPIPS": 0.473841,
+      "PSNR": 16.038999,
+      "SSIM": 0.2028
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0017.yaml"
+  },
+  {
+    "trial": 18,
+    "trial_name": "trial_0018",
+    "J": 0.4060644700000001,
+    "params": {
+      "phot_z_thresh": 3.9806110777442156,
+      "src_dilation_px": 15,
+      "tgt_dilation_px": 3
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 179.311864,
+      "LPIPS": 0.492332,
+      "PSNR": 15.52179,
+      "SSIM": 0.18242
+    },
+    "global": {
+      "FID": 58.098477,
+      "LPIPS": 0.472859,
+      "PSNR": 16.044395,
+      "SSIM": 0.20299
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0018.yaml"
+  },
+  {
+    "trial": 19,
+    "trial_name": "trial_0019",
+    "J": 0.42388055500000005,
+    "params": {
+      "phot_z_thresh": 3.1842100504626214,
+      "src_dilation_px": 7,
+      "tgt_dilation_px": 5
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 182.508371,
+      "LPIPS": 0.495069,
+      "PSNR": 15.58202,
+      "SSIM": 0.18064
+    },
+    "global": {
+      "FID": 60.706425,
+      "LPIPS": 0.473822,
+      "PSNR": 16.023849,
+      "SSIM": 0.202121
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0019.yaml"
+  },
+  {
+    "trial": 20,
+    "trial_name": "trial_0020",
+    "J": 0.36236625000000006,
+    "params": {
+      "phot_z_thresh": 3.7452271693004215,
+      "src_dilation_px": 15,
+      "tgt_dilation_px": 3
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 170.458423,
+      "LPIPS": 0.492787,
+      "PSNR": 15.514191,
+      "SSIM": 0.18174
+    },
+    "global": {
+      "FID": 55.373431,
+      "LPIPS": 0.473247,
+      "PSNR": 16.013484,
+      "SSIM": 0.20258
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0020.yaml"
+  },
+  {
+    "trial": 21,
+    "trial_name": "trial_0021",
+    "J": 0.37537495499999995,
+    "params": {
+      "phot_z_thresh": 3.756818615647801,
+      "src_dilation_px": 15,
+      "tgt_dilation_px": 3
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 173.347142,
+      "LPIPS": 0.491849,
+      "PSNR": 15.547317,
+      "SSIM": 0.182556
+    },
+    "global": {
+      "FID": 56.246171,
+      "LPIPS": 0.472609,
+      "PSNR": 16.039778,
+      "SSIM": 0.202957
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0021.yaml"
+  },
+  {
+    "trial": 22,
+    "trial_name": "trial_0022",
+    "J": 0.365461665,
+    "params": {
+      "phot_z_thresh": 3.5816715964425576,
+      "src_dilation_px": 15,
+      "tgt_dilation_px": 3
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 171.412297,
+      "LPIPS": 0.492166,
+      "PSNR": 15.584388,
+      "SSIM": 0.183206
+    },
+    "global": {
+      "FID": 56.995445,
+      "LPIPS": 0.472975,
+      "PSNR": 16.015977,
+      "SSIM": 0.203002
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0022.yaml"
+  },
+  {
+    "trial": 23,
+    "trial_name": "trial_0023",
+    "J": 0.380300655,
+    "params": {
+      "phot_z_thresh": 3.689513965635702,
+      "src_dilation_px": 15,
+      "tgt_dilation_px": 3
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 174.193099,
+      "LPIPS": 0.492415,
+      "PSNR": 15.538656,
+      "SSIM": 0.183155
+    },
+    "global": {
+      "FID": 56.293772,
+      "LPIPS": 0.472664,
+      "PSNR": 16.027171,
+      "SSIM": 0.202946
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0023.yaml"
+  },
+  {
+    "trial": 24,
+    "trial_name": "trial_0024",
+    "J": 0.3899178000000001,
+    "params": {
+      "phot_z_thresh": 3.5382076418509647,
+      "src_dilation_px": 7,
+      "tgt_dilation_px": 7
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 174.98024,
+      "LPIPS": 0.497819,
+      "PSNR": 15.52016,
+      "SSIM": 0.179193
+    },
+    "global": {
+      "FID": 57.306414,
+      "LPIPS": 0.472856,
+      "PSNR": 16.031761,
+      "SSIM": 0.202541
+    },
+    "config_path": "grid_search_results/phase2_full/configs/trial_0024.yaml"
   }
 ]

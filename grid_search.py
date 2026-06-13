@@ -78,22 +78,20 @@ def _scalarize(m_lpips, m_psnr, m_fid):
 #   * max_grad/densify_until：FID↔LPIPS 取捨主旋鈕；範圍涵蓋「更少 Gaussian」(LPIPS 較好) 那側
 # ============================================================================
 TRAIN_PARAMS = {
-    "loss_lpips_w":    (0.10, 0.35),                  # float
-    "loss_l1_w":       (0.50, 0.75),                  # float（ssim = 餘量）
-    "dw_alpha":        (3.0, 9.0),                    # float, log
-    "dw_dead_scale":   [0.5, 0.75, 1.0],              # categorical
-    "dead_weight":     [0.2, 0.3, 0.4],               # categorical（只低區間）
-    "lpips_mask_prob": [0.0, 0.3, 0.5],               # categorical（新槓桿）
-    "densify_until":   [8000, 10000, 12000, 15000],   # categorical
-    "max_grad":        (0.0005, 0.0012),              # float, log（高=Gaussian 少=LPIPS 較好/FID 較差）
+    "loss_lpips_w":    (0.05, 0.45),
+    "loss_l1_w":       (0.40, 0.80),
+    "dw_alpha":        (2.0, 12.0),                        # log
+    "dw_dead_scale":   [0.25, 0.5, 0.75, 1.0],
+    "dead_weight":     [0.2, 0.3, 0.4, 0.5],              # 封頂 0.5（1.0 已知炸 FID）
+    "lpips_mask_prob": [0.0, 0.25, 0.5, 0.75],
+    "densify_until":   [6000, 8000, 10000, 12000, 15000],
+    "max_grad":        (0.0002, 0.002),                   # log，兩側都開大＝Gaussian 數量控制更激進
 }
 
-# full mode 只搜 inpaint：best inpaint module 實際會讀、且直接影響 FID 的就 phot_z_thresh
-# （bilateral / shadow / min_trusted_blob 在 best module 是 no-op，已剔除）
 INPAINT_PARAMS = {
-    "phot_z_thresh":   (2.0, 4.0), 
-    "src_dilation_px": [7, 11, 15, 19],
-    "tgt_dilation_px": [3, 5, 7, 9],                   # 高=保留更多真實 RGB=FID 較低
+    "phot_z_thresh":   (1.5, 5.0),
+    "src_dilation_px": [3, 7, 11, 15, 19, 23],
+    "tgt_dilation_px": [1, 3, 5, 7, 9, 11],
 }
 
 
@@ -308,7 +306,7 @@ def main():
     study = optuna.create_study(
         study_name=args.study_name,
         direction="minimize",
-        sampler=TPESampler(seed=args.seed, n_startup_trials=15),
+        sampler=TPESampler(seed=args.seed, n_startup_trials=20, multivariate=True, group=True),
         storage=storage,
         load_if_exists=True,
     )

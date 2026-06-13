@@ -1,0 +1,16 @@
+===========================================
+Exp  : final_best
+Scene: 2
+===========================================
+[ Global Metrics ]
+   FID   : 103.1211
+   LPIPS : 0.4673
+   PSNR  : 17.1152
+   SSIM  : 0.0939
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 297.7056
+   m-LPIPS : 0.5189
+   m-PSNR  : 15.5978
+   m-SSIM  : 0.1254
+===========================================

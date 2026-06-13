@@ -1,0 +1,30 @@
+{
+  "trial": 23,
+  "trial_name": "trial_0023",
+  "J": 0.3921087300000001,
+  "params": {
+    "loss_lpips_w": 0.3722417701195748,
+    "loss_l1_w": 0.7769447622968003,
+    "loss_ssim_w": 0.05,
+    "dw_alpha": 2.147262575978543,
+    "dw_dead_scale": 0.5,
+    "dead_weight": 0.2,
+    "lpips_mask_prob": 0.5,
+    "densify_until": 8000,
+    "max_grad": 0.0008249063029604274
+  },
+  "n_scenes": 10,
+  "masked": {
+    "FID": 175.926261,
+    "LPIPS": 0.495354,
+    "PSNR": 15.525105,
+    "SSIM": 0.170357
+  },
+  "global": {
+    "FID": 57.135278,
+    "LPIPS": 0.483482,
+    "PSNR": 16.058717,
+    "SSIM": 0.202807
+  },
+  "config_path": "grid_search_results/phase1_v2/configs/trial_0023.yaml"
+}

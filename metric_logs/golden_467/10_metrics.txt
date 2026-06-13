@@ -1,0 +1,16 @@
+===========================================
+Exp  : golden_467
+Scene: 10
+===========================================
+[ Global Metrics ]
+   FID   : 44.2011
+   LPIPS : 0.4797
+   PSNR  : 13.4816
+   SSIM  : 0.2007
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 81.0852
+   m-LPIPS : 0.4685
+   m-PSNR  : 13.5568
+   m-SSIM  : 0.3211
+===========================================

@@ -134,7 +134,6 @@ class SDInpainter(DeadZoneInpainter):
         "an RGB image of a seamless empty background, "
         "seamless textures, "
         "continuous surface, clean and uncluttered, "
-        "empty scenery, highly detailed, photorealistic"
         ),
         negative_prompt: str = "object, blurry, distorted, dark spot",
         dilate_px: int = 10,

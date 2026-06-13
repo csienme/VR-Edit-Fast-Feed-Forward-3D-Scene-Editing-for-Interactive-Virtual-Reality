@@ -109,7 +109,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--img_path",    type=str, required=True,
                         help="含黑色遮罩的輸入圖片路徑")
-    parser.add_argument("--output_path", type=str, default="inpaint_2d_result.png",
+    parser.add_argument("--output_path", type=str, default="inpaint_2d_result_2.png",
                         help="輸出圖片路徑（預設: inpaint_2d_result.png）")
     args = parser.parse_args()
     run_test(args.img_path, args.output_path)

@@ -487,7 +487,7 @@ def main():
     )  # mask_path 不適用 n_skip！
 
     parser.add_argument(
-        "--inpaint_method", default="lama", choices=["cv2", "lama", "sd"]
+        "--inpaint_method", default=None, choices=["cv2", "lama", "sd"]
     )
 
     parser.add_argument(

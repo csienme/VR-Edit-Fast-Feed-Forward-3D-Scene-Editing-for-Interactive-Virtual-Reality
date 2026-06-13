@@ -1,0 +1,16 @@
+===========================================
+Exp  : final_best
+Scene: book
+===========================================
+[ Global Metrics ]
+   FID   : 46.7656
+   LPIPS : 0.4491
+   PSNR  : 17.8804
+   SSIM  : 0.3979
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 143.5970
+   m-LPIPS : 0.4768
+   m-PSNR  : 18.1094
+   m-SSIM  : 0.2877
+===========================================

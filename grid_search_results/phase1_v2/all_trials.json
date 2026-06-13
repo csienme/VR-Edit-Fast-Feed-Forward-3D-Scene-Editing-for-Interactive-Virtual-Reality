@@ -1,0 +1,1352 @@
+[
+  {
+    "trial": 0,
+    "trial_name": "trial_0000",
+    "J": 0.45622573,
+    "params": {
+      "loss_lpips_w": 0.199816047538945,
+      "loss_l1_w": 0.7802857225639666,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 7.423898007815308,
+      "dw_dead_scale": 0.25,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.0,
+      "densify_until": 10000,
+      "max_grad": 0.0008182441148887565
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 186.543124,
+      "LPIPS": 0.507254,
+      "PSNR": 15.582926,
+      "SSIM": 0.183936
+    },
+    "global": {
+      "FID": 56.743227,
+      "LPIPS": 0.481523,
+      "PSNR": 15.990227,
+      "SSIM": 0.204883
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0000.yaml"
+  },
+  {
+    "trial": 1,
+    "trial_name": "trial_0001",
+    "J": 0.47332424500000003,
+    "params": {
+      "loss_lpips_w": 0.10579754426081674,
+      "loss_l1_w": 0.5168578594140874,
+      "loss_ssim_w": 0.3773,
+      "dw_alpha": 3.8558037565613685,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.4,
+      "lpips_mask_prob": 0.5,
+      "densify_until": 10000,
+      "max_grad": 0.0006254706073560741
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 190.968962,
+      "LPIPS": 0.499851,
+      "PSNR": 15.424771,
+      "SSIM": 0.181521
+    },
+    "global": {
+      "FID": 61.598237,
+      "LPIPS": 0.490011,
+      "PSNR": 15.600354,
+      "SSIM": 0.196788
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0001.yaml"
+  },
+  {
+    "trial": 2,
+    "trial_name": "trial_0002",
+    "J": 0.49792020000000015,
+    "params": {
+      "loss_lpips_w": 0.06375540844608736,
+      "loss_l1_w": 0.7637281608315128,
+      "loss_ssim_w": 0.1725,
+      "dw_alpha": 3.1798011488809172,
+      "dw_dead_scale": 0.25,
+      "dead_weight": 0.3,
+      "lpips_mask_prob": 0.5,
+      "densify_until": 12000,
+      "max_grad": 0.0013482409221405526
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 193.810753,
+      "LPIPS": 0.512503,
+      "PSNR": 15.575771,
+      "SSIM": 0.187255
+    },
+    "global": {
+      "FID": 60.681253,
+      "LPIPS": 0.511839,
+      "PSNR": 15.849214,
+      "SSIM": 0.204222
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0002.yaml"
+  },
+  {
+    "trial": 3,
+    "trial_name": "trial_0003",
+    "J": 0.56248339,
+    "params": {
+      "loss_lpips_w": 0.19270133067743572,
+      "loss_l1_w": 0.5123738038749523,
+      "loss_ssim_w": 0.2949,
+      "dw_alpha": 5.288464962141617,
+      "dw_dead_scale": 1.0,
+      "dead_weight": 0.5,
+      "lpips_mask_prob": 0.5,
+      "densify_until": 10000,
+      "max_grad": 0.00023151991053345508
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 208.525779,
+      "LPIPS": 0.503536,
+      "PSNR": 15.578767,
+      "SSIM": 0.180508
+    },
+    "global": {
+      "FID": 67.072622,
+      "LPIPS": 0.476157,
+      "PSNR": 15.650411,
+      "SSIM": 0.195806
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0003.yaml"
+  },
+  {
+    "trial": 4,
+    "trial_name": "trial_0004",
+    "J": 0.46385266,
+    "params": {
+      "loss_lpips_w": 0.17439292868626488,
+      "loss_l1_w": 0.5300733288106989,
+      "loss_ssim_w": 0.2955,
+      "dw_alpha": 7.39220420730169,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.5,
+      "lpips_mask_prob": 0.25,
+      "densify_until": 10000,
+      "max_grad": 0.001616577275632406
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 188.198598,
+      "LPIPS": 0.504517,
+      "PSNR": 15.443822,
+      "SSIM": 0.184261
+    },
+    "global": {
+      "FID": 58.723195,
+      "LPIPS": 0.495024,
+      "PSNR": 15.688351,
+      "SSIM": 0.20117
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0004.yaml"
+  },
+  {
+    "trial": 5,
+    "trial_name": "trial_0005",
+    "J": 0.4409036300000001,
+    "params": {
+      "loss_lpips_w": 0.14971689165955,
+      "loss_l1_w": 0.564153169214252,
+      "loss_ssim_w": 0.2861,
+      "dw_alpha": 7.7439592477425565,
+      "dw_dead_scale": 0.75,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.5,
+      "densify_until": 8000,
+      "max_grad": 0.000534733982219682
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 184.290522,
+      "LPIPS": 0.501128,
+      "PSNR": 15.445132,
+      "SSIM": 0.178885
+    },
+    "global": {
+      "FID": 58.891546,
+      "LPIPS": 0.48644,
+      "PSNR": 15.636525,
+      "SSIM": 0.197546
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0005.yaml"
+  },
+  {
+    "trial": 6,
+    "trial_name": "trial_0006",
+    "J": 0.40863176,
+    "params": {
+      "loss_lpips_w": 0.37720590636899726,
+      "loss_l1_w": 0.7442922333025375,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.025068903239061,
+      "dw_dead_scale": 0.25,
+      "dead_weight": 0.3,
+      "lpips_mask_prob": 0.5,
+      "densify_until": 8000,
+      "max_grad": 0.0008139436317911937
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 179.227962,
+      "LPIPS": 0.496112,
+      "PSNR": 15.57467,
+      "SSIM": 0.172197
+    },
+    "global": {
+      "FID": 57.722047,
+      "LPIPS": 0.483201,
+      "PSNR": 16.045236,
+      "SSIM": 0.202907
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0006.yaml"
+  },
+  {
+    "trial": 7,
+    "trial_name": "trial_0007",
+    "J": 0.56805935,
+    "params": {
+      "loss_lpips_w": 0.2510716092915446,
+      "loss_l1_w": 0.4205915004999958,
+      "loss_ssim_w": 0.3283,
+      "dw_alpha": 3.2950278542959124,
+      "dw_dead_scale": 0.25,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.25,
+      "densify_until": 12000,
+      "max_grad": 0.00030729005563352046
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 208.117545,
+      "LPIPS": 0.511571,
+      "PSNR": 15.606625,
+      "SSIM": 0.178213
+    },
+    "global": {
+      "FID": 70.995249,
+      "LPIPS": 0.47258,
+      "PSNR": 15.683031,
+      "SSIM": 0.196258
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0007.yaml"
+  },
+  {
+    "trial": 8,
+    "trial_name": "trial_0008",
+    "J": 0.48772905999999994,
+    "params": {
+      "loss_lpips_w": 0.06631005662190557,
+      "loss_l1_w": 0.6363571772752967,
+      "loss_ssim_w": 0.2973,
+      "dw_alpha": 6.73406882966634,
+      "dw_dead_scale": 1.0,
+      "dead_weight": 0.5,
+      "lpips_mask_prob": 0.75,
+      "densify_until": 6000,
+      "max_grad": 0.0006771432818012445
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 193.053117,
+      "LPIPS": 0.504364,
+      "PSNR": 15.460035,
+      "SSIM": 0.182741
+    },
+    "global": {
+      "FID": 62.067194,
+      "LPIPS": 0.518079,
+      "PSNR": 15.642771,
+      "SSIM": 0.19864
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0008.yaml"
+  },
+  {
+    "trial": 9,
+    "trial_name": "trial_0009",
+    "J": 0.5597717099999999,
+    "params": {
+      "loss_lpips_w": 0.14674091636018066,
+      "loss_l1_w": 0.4372411071223597,
+      "loss_ssim_w": 0.416,
+      "dw_alpha": 9.98158615252365,
+      "dw_dead_scale": 0.25,
+      "dead_weight": 0.3,
+      "lpips_mask_prob": 0.75,
+      "densify_until": 12000,
+      "max_grad": 0.0002896263339645146
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 207.495285,
+      "LPIPS": 0.505479,
+      "PSNR": 15.545581,
+      "SSIM": 0.178487
+    },
+    "global": {
+      "FID": 64.926429,
+      "LPIPS": 0.498248,
+      "PSNR": 15.500348,
+      "SSIM": 0.192922
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0009.yaml"
+  },
+  {
+    "trial": 10,
+    "trial_name": "trial_0010",
+    "J": 0.44637673499999997,
+    "params": {
+      "loss_lpips_w": 0.26949351574663444,
+      "loss_l1_w": 0.6767580790770773,
+      "loss_ssim_w": 0.0537,
+      "dw_alpha": 6.432124839686691,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.4,
+      "lpips_mask_prob": 0.0,
+      "densify_until": 8000,
+      "max_grad": 0.0012469277760338896
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 184.603659,
+      "LPIPS": 0.507369,
+      "PSNR": 15.600704,
+      "SSIM": 0.183803
+    },
+    "global": {
+      "FID": 55.091255,
+      "LPIPS": 0.483411,
+      "PSNR": 15.999557,
+      "SSIM": 0.204432
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0010.yaml"
+  },
+  {
+    "trial": 11,
+    "trial_name": "trial_0011",
+    "J": 0.45016369500000003,
+    "params": {
+      "loss_lpips_w": 0.25105483724207683,
+      "loss_l1_w": 0.6307615538505437,
+      "loss_ssim_w": 0.1182,
+      "dw_alpha": 4.8337396474859995,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.5,
+      "lpips_mask_prob": 0.75,
+      "densify_until": 8000,
+      "max_grad": 0.00048543124255330023
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 186.662832,
+      "LPIPS": 0.499635,
+      "PSNR": 15.519031,
+      "SSIM": 0.173503
+    },
+    "global": {
+      "FID": 57.120922,
+      "LPIPS": 0.496156,
+      "PSNR": 15.852633,
+      "SSIM": 0.201684
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0011.yaml"
+  },
+  {
+    "trial": 12,
+    "trial_name": "trial_0012",
+    "J": 0.45962624,
+    "params": {
+      "loss_lpips_w": 0.39045466860674277,
+      "loss_l1_w": 0.5267688020625111,
+      "loss_ssim_w": 0.0828,
+      "dw_alpha": 2.7096986092290694,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.4,
+      "lpips_mask_prob": 0.25,
+      "densify_until": 15000,
+      "max_grad": 0.0014726594013519416
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 187.974477,
+      "LPIPS": 0.502412,
+      "PSNR": 15.510543,
+      "SSIM": 0.172023
+    },
+    "global": {
+      "FID": 55.205949,
+      "LPIPS": 0.480842,
+      "PSNR": 15.922974,
+      "SSIM": 0.200849
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0012.yaml"
+  },
+  {
+    "trial": 13,
+    "trial_name": "trial_0013",
+    "J": 0.5859105099999999,
+    "params": {
+      "loss_lpips_w": 0.4152962210225885,
+      "loss_l1_w": 0.6045369595443751,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 4.912307302824603,
+      "dw_dead_scale": 0.25,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.0,
+      "densify_until": 15000,
+      "max_grad": 0.00045837469825462545
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 207.773844,
+      "LPIPS": 0.530224,
+      "PSNR": 15.545514,
+      "SSIM": 0.168972
+    },
+    "global": {
+      "FID": 96.082593,
+      "LPIPS": 0.486141,
+      "PSNR": 15.969333,
+      "SSIM": 0.198533
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0013.yaml"
+  },
+  {
+    "trial": 14,
+    "trial_name": "trial_0014",
+    "J": 0.52034855,
+    "params": {
+      "loss_lpips_w": 0.10082420506075392,
+      "loss_l1_w": 0.6088973040219218,
+      "loss_ssim_w": 0.2903,
+      "dw_alpha": 7.946967589107868,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.5,
+      "lpips_mask_prob": 0.0,
+      "densify_until": 15000,
+      "max_grad": 0.0013709136989744437
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 193.290245,
+      "LPIPS": 0.536791,
+      "PSNR": 15.526245,
+      "SSIM": 0.190055
+    },
+    "global": {
+      "FID": 58.677019,
+      "LPIPS": 0.499377,
+      "PSNR": 15.677783,
+      "SSIM": 0.201409
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0014.yaml"
+  },
+  {
+    "trial": 15,
+    "trial_name": "trial_0015",
+    "J": 0.41450135499999996,
+    "params": {
+      "loss_lpips_w": 0.3283896824374792,
+      "loss_l1_w": 0.563581177765708,
+      "loss_ssim_w": 0.108,
+      "dw_alpha": 2.728218738524457,
+      "dw_dead_scale": 1.0,
+      "dead_weight": 0.4,
+      "lpips_mask_prob": 0.25,
+      "densify_until": 8000,
+      "max_grad": 0.0002196639546323483
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 179.637833,
+      "LPIPS": 0.499584,
+      "PSNR": 15.551454,
+      "SSIM": 0.176624
+    },
+    "global": {
+      "FID": 55.614396,
+      "LPIPS": 0.471427,
+      "PSNR": 15.957465,
+      "SSIM": 0.201335
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0015.yaml"
+  },
+  {
+    "trial": 16,
+    "trial_name": "trial_0016",
+    "J": 0.4550413,
+    "params": {
+      "loss_lpips_w": 0.3921842336044029,
+      "loss_l1_w": 0.6814631437520096,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 4.677447844861582,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.5,
+      "lpips_mask_prob": 0.5,
+      "densify_until": 6000,
+      "max_grad": 0.00021258925314796866
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 188.603853,
+      "LPIPS": 0.495163,
+      "PSNR": 15.542731,
+      "SSIM": 0.172812
+    },
+    "global": {
+      "FID": 62.863693,
+      "LPIPS": 0.476207,
+      "PSNR": 16.092217,
+      "SSIM": 0.202729
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0016.yaml"
+  },
+  {
+    "trial": 17,
+    "trial_name": "trial_0017",
+    "J": 0.5277155499999999,
+    "params": {
+      "loss_lpips_w": 0.2843102325093853,
+      "loss_l1_w": 0.7760920965699831,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 5.608360820978607,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.4,
+      "lpips_mask_prob": 0.0,
+      "densify_until": 15000,
+      "max_grad": 0.000211009462587861
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 198.762534,
+      "LPIPS": 0.518239,
+      "PSNR": 15.622408,
+      "SSIM": 0.178924
+    },
+    "global": {
+      "FID": 102.940556,
+      "LPIPS": 0.478849,
+      "PSNR": 16.096318,
+      "SSIM": 0.20333
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0017.yaml"
+  },
+  {
+    "trial": 18,
+    "trial_name": "trial_0018",
+    "J": 0.42985705500000004,
+    "params": {
+      "loss_lpips_w": 0.37578739303557435,
+      "loss_l1_w": 0.51274190990936,
+      "loss_ssim_w": 0.1115,
+      "dw_alpha": 2.4716109125732437,
+      "dw_dead_scale": 0.75,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.25,
+      "densify_until": 10000,
+      "max_grad": 0.0011269406987813298
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 182.815784,
+      "LPIPS": 0.498785,
+      "PSNR": 15.533791,
+      "SSIM": 0.1708
+    },
+    "global": {
+      "FID": 56.866014,
+      "LPIPS": 0.476575,
+      "PSNR": 15.913275,
+      "SSIM": 0.200114
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0018.yaml"
+  },
+  {
+    "trial": 19,
+    "trial_name": "trial_0019",
+    "J": 0.5190591500000001,
+    "params": {
+      "loss_lpips_w": 0.35181714963387295,
+      "loss_l1_w": 0.44124954753437307,
+      "loss_ssim_w": 0.2069,
+      "dw_alpha": 10.077496791054234,
+      "dw_dead_scale": 1.0,
+      "dead_weight": 0.4,
+      "lpips_mask_prob": 0.5,
+      "densify_until": 15000,
+      "max_grad": 0.0011308487572574038
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 199.151149,
+      "LPIPS": 0.504699,
+      "PSNR": 15.426373,
+      "SSIM": 0.171379
+    },
+    "global": {
+      "FID": 58.615022,
+      "LPIPS": 0.486334,
+      "PSNR": 15.666728,
+      "SSIM": 0.198639
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0019.yaml"
+  },
+  {
+    "trial": 20,
+    "trial_name": "trial_0020",
+    "J": 0.4257527850000001,
+    "params": {
+      "loss_lpips_w": 0.41149493295417583,
+      "loss_l1_w": 0.48846301739915926,
+      "loss_ssim_w": 0.1,
+      "dw_alpha": 2.641901778586156,
+      "dw_dead_scale": 1.0,
+      "dead_weight": 0.4,
+      "lpips_mask_prob": 0.25,
+      "densify_until": 8000,
+      "max_grad": 0.00024287213808466248
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 181.950937,
+      "LPIPS": 0.499765,
+      "PSNR": 15.58446,
+      "SSIM": 0.174861
+    },
+    "global": {
+      "FID": 57.120966,
+      "LPIPS": 0.472353,
+      "PSNR": 15.970297,
+      "SSIM": 0.200806
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0020.yaml"
+  },
+  {
+    "trial": 21,
+    "trial_name": "trial_0021",
+    "J": 0.41722506000000015,
+    "params": {
+      "loss_lpips_w": 0.3597413004092084,
+      "loss_l1_w": 0.767989646928731,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.0662460919232277,
+      "dw_dead_scale": 0.25,
+      "dead_weight": 0.3,
+      "lpips_mask_prob": 0.5,
+      "densify_until": 8000,
+      "max_grad": 0.0007512676571684548
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 180.512829,
+      "LPIPS": 0.497607,
+      "PSNR": 15.529739,
+      "SSIM": 0.171448
+    },
+    "global": {
+      "FID": 56.733721,
+      "LPIPS": 0.483138,
+      "PSNR": 16.05727,
+      "SSIM": 0.202995
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0021.yaml"
+  },
+  {
+    "trial": 22,
+    "trial_name": "trial_0022",
+    "J": 0.5409538600000001,
+    "params": {
+      "loss_lpips_w": 0.3175861039593737,
+      "loss_l1_w": 0.7865504765631891,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.6526774401388487,
+      "dw_dead_scale": 0.25,
+      "dead_weight": 0.3,
+      "lpips_mask_prob": 0.5,
+      "densify_until": 10000,
+      "max_grad": 0.0006902964892757504
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 205.240291,
+      "LPIPS": 0.497927,
+      "PSNR": 15.544973,
+      "SSIM": 0.168111
+    },
+    "global": {
+      "FID": 63.910798,
+      "LPIPS": 0.483047,
+      "PSNR": 16.039523,
+      "SSIM": 0.202316
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0022.yaml"
+  },
+  {
+    "trial": 23,
+    "trial_name": "trial_0023",
+    "J": 0.3921087300000001,
+    "params": {
+      "loss_lpips_w": 0.3722417701195748,
+      "loss_l1_w": 0.7769447622968003,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.147262575978543,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.5,
+      "densify_until": 8000,
+      "max_grad": 0.0008249063029604274
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 175.926261,
+      "LPIPS": 0.495354,
+      "PSNR": 15.525105,
+      "SSIM": 0.170357
+    },
+    "global": {
+      "FID": 57.135278,
+      "LPIPS": 0.483482,
+      "PSNR": 16.058717,
+      "SSIM": 0.202807
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0023.yaml"
+  },
+  {
+    "trial": 24,
+    "trial_name": "trial_0024",
+    "J": 0.5455889150000001,
+    "params": {
+      "loss_lpips_w": 0.36222965496216303,
+      "loss_l1_w": 0.6791475291497522,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.3060006196964653,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.5,
+      "densify_until": 12000,
+      "max_grad": 0.0007432699080944648
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 203.943264,
+      "LPIPS": 0.508484,
+      "PSNR": 15.507427,
+      "SSIM": 0.164552
+    },
+    "global": {
+      "FID": 66.327637,
+      "LPIPS": 0.485481,
+      "PSNR": 16.0193,
+      "SSIM": 0.201019
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0024.yaml"
+  },
+  {
+    "trial": 25,
+    "trial_name": "trial_0025",
+    "J": 0.434440155,
+    "params": {
+      "loss_lpips_w": 0.31818281225252837,
+      "loss_l1_w": 0.6453501291128848,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.522934134837907,
+      "dw_dead_scale": 1.0,
+      "dead_weight": 0.4,
+      "lpips_mask_prob": 0.5,
+      "densify_until": 8000,
+      "max_grad": 0.000218748364535762
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 184.357745,
+      "LPIPS": 0.495818,
+      "PSNR": 15.544438,
+      "SSIM": 0.172679
+    },
+    "global": {
+      "FID": 61.477337,
+      "LPIPS": 0.477097,
+      "PSNR": 16.085846,
+      "SSIM": 0.202972
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0025.yaml"
+  },
+  {
+    "trial": 26,
+    "trial_name": "trial_0026",
+    "J": 0.4044296199999999,
+    "params": {
+      "loss_lpips_w": 0.33162276247073175,
+      "loss_l1_w": 0.7565664881493079,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 3.018911436428118,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.0,
+      "densify_until": 8000,
+      "max_grad": 0.0011161855055359501
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 177.114185,
+      "LPIPS": 0.502686,
+      "PSNR": 15.588487,
+      "SSIM": 0.180146
+    },
+    "global": {
+      "FID": 54.750432,
+      "LPIPS": 0.477462,
+      "PSNR": 16.031352,
+      "SSIM": 0.203302
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0026.yaml"
+  },
+  {
+    "trial": 27,
+    "trial_name": "trial_0027",
+    "J": 0.39439834000000007,
+    "params": {
+      "loss_lpips_w": 0.4406320969850589,
+      "loss_l1_w": 0.7738567430344166,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.0385141682136867,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.25,
+      "densify_until": 8000,
+      "max_grad": 0.0006442716789328393
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 176.015014,
+      "LPIPS": 0.497774,
+      "PSNR": 15.563382,
+      "SSIM": 0.171319
+    },
+    "global": {
+      "FID": 56.760472,
+      "LPIPS": 0.472427,
+      "PSNR": 16.0451,
+      "SSIM": 0.201181
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0027.yaml"
+  },
+  {
+    "trial": 28,
+    "trial_name": "trial_0028",
+    "J": 0.43538694999999994,
+    "params": {
+      "loss_lpips_w": 0.29661369765293927,
+      "loss_l1_w": 0.7601084843368061,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.6940376281216376,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.5,
+      "lpips_mask_prob": 0.0,
+      "densify_until": 8000,
+      "max_grad": 0.00119099150846082
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 183.348786,
+      "LPIPS": 0.50308,
+      "PSNR": 15.629132,
+      "SSIM": 0.182203
+    },
+    "global": {
+      "FID": 53.877505,
+      "LPIPS": 0.479913,
+      "PSNR": 16.057399,
+      "SSIM": 0.204087
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0028.yaml"
+  },
+  {
+    "trial": 29,
+    "trial_name": "trial_0029",
+    "J": 0.41146220499999997,
+    "params": {
+      "loss_lpips_w": 0.4482484321118276,
+      "loss_l1_w": 0.7889364521349688,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.238976449123127,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.25,
+      "densify_until": 8000,
+      "max_grad": 0.0006395138912401295
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 179.452551,
+      "LPIPS": 0.4981,
+      "PSNR": 15.59337,
+      "SSIM": 0.171676
+    },
+    "global": {
+      "FID": 58.462997,
+      "LPIPS": 0.472269,
+      "PSNR": 16.063474,
+      "SSIM": 0.201338
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0029.yaml"
+  },
+  {
+    "trial": 30,
+    "trial_name": "trial_0030",
+    "J": 0.514722445,
+    "params": {
+      "loss_lpips_w": 0.37842682660761223,
+      "loss_l1_w": 0.7776913190427656,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.6405112234282435,
+      "dw_dead_scale": 1.0,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.5,
+      "densify_until": 10000,
+      "max_grad": 0.0009912109360409858
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 200.056964,
+      "LPIPS": 0.497118,
+      "PSNR": 15.512025,
+      "SSIM": 0.16717
+    },
+    "global": {
+      "FID": 60.212206,
+      "LPIPS": 0.485771,
+      "PSNR": 16.024411,
+      "SSIM": 0.202473
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0030.yaml"
+  },
+  {
+    "trial": 31,
+    "trial_name": "trial_0031",
+    "J": 0.41219782499999996,
+    "params": {
+      "loss_lpips_w": 0.2650462598950293,
+      "loss_l1_w": 0.7702394674761751,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.060620853848261,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.5,
+      "densify_until": 8000,
+      "max_grad": 0.0008210588056701148
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 179.904171,
+      "LPIPS": 0.495897,
+      "PSNR": 15.548002,
+      "SSIM": 0.173711
+    },
+    "global": {
+      "FID": 55.473315,
+      "LPIPS": 0.48823,
+      "PSNR": 16.034121,
+      "SSIM": 0.204415
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0031.yaml"
+  },
+  {
+    "trial": 32,
+    "trial_name": "trial_0032",
+    "J": 0.43897400499999994,
+    "params": {
+      "loss_lpips_w": 0.32040269939907634,
+      "loss_l1_w": 0.7500419165508646,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.7191681186274517,
+      "dw_dead_scale": 0.25,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.75,
+      "densify_until": 6000,
+      "max_grad": 0.0012050645754364483
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 185.585611,
+      "LPIPS": 0.493838,
+      "PSNR": 15.51947,
+      "SSIM": 0.172093
+    },
+    "global": {
+      "FID": 58.371001,
+      "LPIPS": 0.510264,
+      "PSNR": 16.061674,
+      "SSIM": 0.206321
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0032.yaml"
+  },
+  {
+    "trial": 33,
+    "trial_name": "trial_0033",
+    "J": 0.59497043,
+    "params": {
+      "loss_lpips_w": 0.39068481957322215,
+      "loss_l1_w": 0.7682810612073216,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.066901697247603,
+      "dw_dead_scale": 0.25,
+      "dead_weight": 0.5,
+      "lpips_mask_prob": 0.25,
+      "densify_until": 12000,
+      "max_grad": 0.0006933671451460614
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 212.84012,
+      "LPIPS": 0.514663,
+      "PSNR": 15.592878,
+      "SSIM": 0.169972
+    },
+    "global": {
+      "FID": 89.669234,
+      "LPIPS": 0.483042,
+      "PSNR": 16.041192,
+      "SSIM": 0.200207
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0033.yaml"
+  },
+  {
+    "trial": 34,
+    "trial_name": "trial_0034",
+    "J": 0.40149450500000006,
+    "params": {
+      "loss_lpips_w": 0.37151655971681297,
+      "loss_l1_w": 0.6919184295813963,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.697365202878812,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.0,
+      "densify_until": 6000,
+      "max_grad": 0.0011882613017638085
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 177.03397,
+      "LPIPS": 0.500382,
+      "PSNR": 15.603823,
+      "SSIM": 0.17935
+    },
+    "global": {
+      "FID": 52.478137,
+      "LPIPS": 0.47587,
+      "PSNR": 16.036727,
+      "SSIM": 0.202596
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0034.yaml"
+  },
+  {
+    "trial": 35,
+    "trial_name": "trial_0035",
+    "J": 0.4146886900000001,
+    "params": {
+      "loss_lpips_w": 0.3743210549679579,
+      "loss_l1_w": 0.691731903057209,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 4.110518952631005,
+      "dw_dead_scale": 0.75,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.0,
+      "densify_until": 8000,
+      "max_grad": 0.0014570535210000402
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 178.838841,
+      "LPIPS": 0.504259,
+      "PSNR": 15.584301,
+      "SSIM": 0.179713
+    },
+    "global": {
+      "FID": 53.760956,
+      "LPIPS": 0.47965,
+      "PSNR": 16.03247,
+      "SSIM": 0.203181
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0035.yaml"
+  },
+  {
+    "trial": 36,
+    "trial_name": "trial_0036",
+    "J": 0.41425330000000005,
+    "params": {
+      "loss_lpips_w": 0.4278675182753739,
+      "loss_l1_w": 0.7495035630704042,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 3.0575127984191974,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.4,
+      "lpips_mask_prob": 0.5,
+      "densify_until": 6000,
+      "max_grad": 0.0010634516589358642
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 180.771724,
+      "LPIPS": 0.493376,
+      "PSNR": 15.532088,
+      "SSIM": 0.173156
+    },
+    "global": {
+      "FID": 54.566489,
+      "LPIPS": 0.485226,
+      "PSNR": 16.052119,
+      "SSIM": 0.203273
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0036.yaml"
+  },
+  {
+    "trial": 37,
+    "trial_name": "trial_0037",
+    "J": 0.4049577499999999,
+    "params": {
+      "loss_lpips_w": 0.4097879422019269,
+      "loss_l1_w": 0.7729507163754985,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.4085786133915597,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.0,
+      "densify_until": 15000,
+      "max_grad": 0.0016676004300226227
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 176.883257,
+      "LPIPS": 0.504115,
+      "PSNR": 15.571569,
+      "SSIM": 0.178016
+    },
+    "global": {
+      "FID": 58.086025,
+      "LPIPS": 0.478234,
+      "PSNR": 16.021726,
+      "SSIM": 0.202188
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0037.yaml"
+  },
+  {
+    "trial": 38,
+    "trial_name": "trial_0038",
+    "J": 0.392845585,
+    "params": {
+      "loss_lpips_w": 0.2754630968390831,
+      "loss_l1_w": 0.5952561016571796,
+      "loss_ssim_w": 0.1293,
+      "dw_alpha": 2.652289512766527,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.0,
+      "densify_until": 6000,
+      "max_grad": 0.0007436271529988571
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 174.667091,
+      "LPIPS": 0.502626,
+      "PSNR": 15.541058,
+      "SSIM": 0.18179
+    },
+    "global": {
+      "FID": 54.88358,
+      "LPIPS": 0.472355,
+      "PSNR": 15.892219,
+      "SSIM": 0.200978
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0038.yaml"
+  },
+  {
+    "trial": 39,
+    "trial_name": "trial_0039",
+    "J": 0.44259142,
+    "params": {
+      "loss_lpips_w": 0.2174798712537942,
+      "loss_l1_w": 0.5689429227791579,
+      "loss_ssim_w": 0.2136,
+      "dw_alpha": 2.0395340450140043,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.0,
+      "densify_until": 6000,
+      "max_grad": 0.0007235527060296016
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 183.928458,
+      "LPIPS": 0.506203,
+      "PSNR": 15.550258,
+      "SSIM": 0.184299
+    },
+    "global": {
+      "FID": 56.304382,
+      "LPIPS": 0.474284,
+      "PSNR": 15.807527,
+      "SSIM": 0.20001
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0039.yaml"
+  },
+  {
+    "trial": 40,
+    "trial_name": "trial_0040",
+    "J": 0.40891225999999997,
+    "params": {
+      "loss_lpips_w": 0.3747602918865855,
+      "loss_l1_w": 0.6722580983013119,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 3.818159116657205,
+      "dw_dead_scale": 1.0,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.0,
+      "densify_until": 6000,
+      "max_grad": 0.0015229311600850216
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 177.70532,
+      "LPIPS": 0.504208,
+      "PSNR": 15.588156,
+      "SSIM": 0.180477
+    },
+    "global": {
+      "FID": 54.530835,
+      "LPIPS": 0.480059,
+      "PSNR": 16.027601,
+      "SSIM": 0.203423
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0040.yaml"
+  },
+  {
+    "trial": 41,
+    "trial_name": "trial_0041",
+    "J": 0.41082470999999987,
+    "params": {
+      "loss_lpips_w": 0.4306407480152043,
+      "loss_l1_w": 0.7863693994808895,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 3.4004813395540405,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.5,
+      "densify_until": 8000,
+      "max_grad": 0.0018938257348543354
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 179.856678,
+      "LPIPS": 0.49476,
+      "PSNR": 15.547912,
+      "SSIM": 0.173027
+    },
+    "global": {
+      "FID": 54.567539,
+      "LPIPS": 0.494738,
+      "PSNR": 16.033324,
+      "SSIM": 0.204653
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0041.yaml"
+  },
+  {
+    "trial": 42,
+    "trial_name": "trial_0042",
+    "J": 0.41635013499999995,
+    "params": {
+      "loss_lpips_w": 0.3968347888286743,
+      "loss_l1_w": 0.6510930377242267,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.4249718516711147,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.0,
+      "densify_until": 6000,
+      "max_grad": 0.0017998840290259779
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 179.179253,
+      "LPIPS": 0.504291,
+      "PSNR": 15.589142,
+      "SSIM": 0.179903
+    },
+    "global": {
+      "FID": 51.214559,
+      "LPIPS": 0.479778,
+      "PSNR": 16.049406,
+      "SSIM": 0.203159
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0042.yaml"
+  },
+  {
+    "trial": 43,
+    "trial_name": "trial_0043",
+    "J": 0.437479755,
+    "params": {
+      "loss_lpips_w": 0.38321016435912614,
+      "loss_l1_w": 0.6505214333678766,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.441448230276595,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.4,
+      "lpips_mask_prob": 0.75,
+      "densify_until": 8000,
+      "max_grad": 0.0007602571152761415
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 184.645117,
+      "LPIPS": 0.497329,
+      "PSNR": 15.538322,
+      "SSIM": 0.169542
+    },
+    "global": {
+      "FID": 56.007623,
+      "LPIPS": 0.501371,
+      "PSNR": 16.036266,
+      "SSIM": 0.204465
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0043.yaml"
+  },
+  {
+    "trial": 44,
+    "trial_name": "trial_0044",
+    "J": 0.39577987499999995,
+    "params": {
+      "loss_lpips_w": 0.4287433026160564,
+      "loss_l1_w": 0.7646059585325958,
+      "loss_ssim_w": 0.05,
+      "dw_alpha": 2.5939834736575373,
+      "dw_dead_scale": 0.5,
+      "dead_weight": 0.2,
+      "lpips_mask_prob": 0.0,
+      "densify_until": 6000,
+      "max_grad": 0.0006173359711013131
+    },
+    "n_scenes": 10,
+    "masked": {
+      "FID": 175.633062,
+      "LPIPS": 0.500679,
+      "PSNR": 15.537629,
+      "SSIM": 0.177502
+    },
+    "global": {
+      "FID": 57.903632,
+      "LPIPS": 0.468926,
+      "PSNR": 16.041519,
+      "SSIM": 0.201031
+    },
+    "config_path": "grid_search_results/phase1_v2/configs/trial_0044.yaml"
+  }
+]

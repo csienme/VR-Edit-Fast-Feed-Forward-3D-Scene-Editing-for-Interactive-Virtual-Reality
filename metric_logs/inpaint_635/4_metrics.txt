@@ -1,0 +1,16 @@
+===========================================
+Exp  : inpaint_635
+Scene: 4
+===========================================
+[ Global Metrics ]
+   FID   : 48.2812
+   LPIPS : 0.4594
+   PSNR  : 18.2306
+   SSIM  : 0.2930
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 148.9427
+   m-LPIPS : 0.4439
+   m-PSNR  : 17.3348
+   m-SSIM  : 0.3275
+===========================================

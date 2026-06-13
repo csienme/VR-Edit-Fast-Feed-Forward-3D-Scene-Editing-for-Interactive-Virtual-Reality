@@ -1,0 +1,16 @@
+{
+  "exp_name": "final_best",
+  "scene": "trash",
+  "global": {
+    "FID": 31.401094,
+    "LPIPS": 0.450015,
+    "PSNR": 18.222896,
+    "SSIM": 0.355776
+  },
+  "masked": {
+    "FID": 275.332397,
+    "LPIPS": 0.526788,
+    "PSNR": 17.129217,
+    "SSIM": 0.246711
+  }
+}

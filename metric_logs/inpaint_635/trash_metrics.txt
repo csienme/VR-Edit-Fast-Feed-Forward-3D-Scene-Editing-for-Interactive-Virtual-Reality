@@ -1,0 +1,16 @@
+===========================================
+Exp  : inpaint_635
+Scene: trash
+===========================================
+[ Global Metrics ]
+   FID   : 31.3867
+   LPIPS : 0.4554
+   PSNR  : 18.2029
+   SSIM  : 0.3561
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 281.0211
+   m-LPIPS : 0.5233
+   m-PSNR  : 17.2318
+   m-SSIM  : 0.2331
+===========================================
