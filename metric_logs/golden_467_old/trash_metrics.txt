@@ -1,0 +1,16 @@
+===========================================
+Exp  : golden_467
+Scene: trash
+===========================================
+[ Global Metrics ]
+   FID   : 33.5970
+   LPIPS : 0.4628
+   PSNR  : 18.0807
+   SSIM  : 0.3594
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 218.4874
+   m-LPIPS : 0.4994
+   m-PSNR  : 17.1676
+   m-SSIM  : 0.2534
+===========================================

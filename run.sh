@@ -1,4 +1,20 @@
 #!/bin/bash
+# ============================================================
+# 單一場景版執行腳本（對齊新版 run_spinnerf.sh 的參數傳遞）
+#
+# 保留原本用法：
+#   bash run.sh kitchen ../data/Other-360/kitchen/images ../data/Other-360/kitchen/object_masks
+#
+# Stage 控制：
+#   function="1" bash run.sh ...
+#   function="4" bash run.sh ...
+#   function="5" bash run.sh ...
+#
+# 主要更新：
+#   - 支援 CONFIG 環境變數，傳給 eval_iggt.py / train.py
+#   - train / render 的參數傳遞方式與新版 run_spinnerf.sh 對齊
+# ============================================================
+
 source "$(conda info --base)/etc/profile.d/conda.sh"
 conda activate fastvggt
 
@@ -9,12 +25,7 @@ RGB_DIR="${2:?需要 RGB 圖片目錄（絕對路徑或相對路徑）}"
 MASK_DIR="${3:?需要 mask 目錄（白=要 inpaint 的物體區）}"
 
 # 可選：指定只跑某一階段
-# 用法：
-#   bash run.sh kitchen ../data/Other-360/kitchen/images ../data/Other-360/kitchen/object_masks
-#   function="4" bash run_360.sh kitchen ...
-#
-# 預設值：all（1 和 4 全部執行）
-# Step 2 和 Step 3 已移除：COLMAP 現在由 Step 1 直接產生
+# 預設值：all（1 / 4 / 5 全部執行）
 RUN_STAGE="${function:-all}"
 
 should_run () {
@@ -22,15 +33,17 @@ should_run () {
     [[ "${RUN_STAGE}" == "all" || "${RUN_STAGE}" == "${target}" ]]
 }
 
+# 與 run_spinnerf.sh 對齊：允許外部用 CONFIG 指定 yaml
+CONFIG_FILE="${CONFIG:-configs/exp_baseline.yaml}"
+
 # 輸出結構:
 #   eval_results_custom/{DATASET_NAME}/{SCENE}/
 #   ├── inpainted/       ← VGGT inpainting 結果
 #   ├── deadmasks/       ← dead zone masks
 #   ├── colmap/          ← COLMAP sparse + images/（由 Step 1 直接產生）
 #   └── renders/         ← 3DGS 渲染結果
-
 DATASET_NAME=$(basename "$(dirname "$(dirname "${RGB_DIR}")")")
-BASE_OUT="eval_results_custom/${DATASET_NAME}/${SCENE}"
+BASE_OUT="eval_results_abl_no_transfer/${DATASET_NAME}/${SCENE}"
 
 INPAINTED_DIR="${BASE_OUT}/inpainted"
 DEADMASK_DIR="${BASE_OUT}/deadmasks"
@@ -44,6 +57,7 @@ echo "   RGB:     ${RGB_DIR}"
 echo "   Mask:    ${MASK_DIR}"
 echo "   Output:  ${BASE_OUT}"
 echo "   Stage:   ${RUN_STAGE}"
+echo "   Config:  ${CONFIG_FILE}"
 echo "   Structure:"
 echo "     inpainted/ → ${INPAINTED_DIR}"
 echo "     deadmasks/ → ${DEADMASK_DIR}"
@@ -62,12 +76,10 @@ if should_run 1; then
     echo ""
     echo "[${SCENE}] Step 1: VGGT inpainting + COLMAP export..."
     python eval/eval_iggt.py \
+        --config "${CONFIG_FILE}" \
         --data_path "${RGB_DIR}" \
         --mask_path "${MASK_DIR}" \
-        --enable_gen_3d_prop \
-        --generate "all frame" \
         --exp_name "${SCENE}" \
-        --inpaint_method sd \
         --output_root "${BASE_OUT}"
 fi
 
@@ -86,17 +98,15 @@ if should_run 4; then
     mkdir -p "${RENDER_DIR}"
 
     python train.py \
+        --config          "${CONFIG_FILE}" \
         --colmap_dir      "${COLMAP_DIR}" \
         --train_img_dir   "${COLMAP_DIR}/images" \
         --deadmask_dir    "${DEADMASK_DIR}" \
-        --output_gaussian "${RENDER_DIR}/gaussians.pth" \
-        --total_iters     40000 \
-        --dead_weight     0.3 \
-        --patch_size      256 
+        --output_gaussian "${RENDER_DIR}/gaussians.pth"
 fi
 
 if should_run 5; then
-    # Bug fix: gaussian_path 指向 train_.py 的輸出（RENDER_DIR），不是 COLMAP_DIR
+    # Bug fix: gaussian_path 指向 train.py 的輸出（RENDER_DIR），不是 COLMAP_DIR
     python render.py \
         --nvs_pose          "${COLMAP_DIR}" \
         --gaussian_path     "${RENDER_DIR}/gaussians.pth" \

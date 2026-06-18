@@ -1,0 +1,16 @@
+{
+  "exp_name": "abl_no_transfer",
+  "scene": "book",
+  "global": {
+    "FID": 48.3559,
+    "LPIPS": 0.451379,
+    "PSNR": 17.785985,
+    "SSIM": 0.401395
+  },
+  "masked": {
+    "FID": 106.209267,
+    "LPIPS": 0.424349,
+    "PSNR": 18.144934,
+    "SSIM": 0.283813
+  }
+}

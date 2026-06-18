@@ -1,0 +1,28 @@
+{
+  "exp_name": "abl_no_weighting",
+  "n_scenes": 10,
+  "scenes_found": [
+    "1",
+    "2",
+    "3",
+    "4",
+    "7",
+    "9",
+    "10",
+    "12",
+    "book",
+    "trash"
+  ],
+  "global": {
+    "FID": 67.229877,
+    "LPIPS": 0.478117,
+    "PSNR": 16.10702,
+    "SSIM": 0.204348
+  },
+  "masked": {
+    "FID": 148.536169,
+    "LPIPS": 0.46802,
+    "PSNR": 15.66222,
+    "SSIM": 0.178261
+  }
+}

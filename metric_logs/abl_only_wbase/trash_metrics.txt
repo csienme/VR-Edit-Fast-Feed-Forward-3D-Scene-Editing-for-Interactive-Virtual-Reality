@@ -1,0 +1,16 @@
+===========================================
+Exp  : abl_only_wbase
+Scene: trash
+===========================================
+[ Global Metrics ]
+   FID   : 33.0981
+   LPIPS : 0.4583
+   PSNR  : 18.1954
+   SSIM  : 0.3584
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 209.5015
+   m-LPIPS : 0.4881
+   m-PSNR  : 17.2251
+   m-SSIM  : 0.2476
+===========================================

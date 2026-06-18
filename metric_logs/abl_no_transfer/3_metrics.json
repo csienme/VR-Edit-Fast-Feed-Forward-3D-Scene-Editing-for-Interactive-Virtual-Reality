@@ -1,0 +1,16 @@
+{
+  "exp_name": "abl_no_transfer",
+  "scene": "3",
+  "global": {
+    "FID": 76.945068,
+    "LPIPS": 0.568634,
+    "PSNR": 12.263955,
+    "SSIM": 0.104671
+  },
+  "masked": {
+    "FID": 141.00119,
+    "LPIPS": 0.585004,
+    "PSNR": 12.467099,
+    "SSIM": 0.073472
+  }
+}

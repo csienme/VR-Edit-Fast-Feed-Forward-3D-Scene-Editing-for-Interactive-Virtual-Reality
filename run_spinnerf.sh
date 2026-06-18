@@ -43,7 +43,7 @@ DATASET_ROOT="../spinnerf-dataset"
 DATASET_NAME="$(basename "${DATASET_ROOT}")"
 OUTPUT_ROOT="./eval_results_custom"
 METRIC_ROOT="./metric_logs"
-CONFIG_FILE="${CONFIG:-configs/exp_baseline.yaml}"   # ← 新增
+CONFIG_FILE="${CONFIG:-configs/golden_467.yaml}"   # ← 新增
 
 # 從 YAML 讀取 experiment.name 作為 metric 的 exp_name
 METRIC_EXP_NAME=$(python3 -c "import yaml; print(yaml.safe_load(open('${CONFIG_FILE}')).get('experiment',{}).get('name','spinnerf_eval'))" 2>/dev/null || echo "spinnerf_eval")

@@ -1,0 +1,16 @@
+{
+  "exp_name": "abl_no_weighting",
+  "scene": "2",
+  "global": {
+    "FID": 104.04792,
+    "LPIPS": 0.463301,
+    "PSNR": 17.063578,
+    "SSIM": 0.099754
+  },
+  "masked": {
+    "FID": 254.104233,
+    "LPIPS": 0.484387,
+    "PSNR": 14.728739,
+    "SSIM": 0.134468
+  }
+}

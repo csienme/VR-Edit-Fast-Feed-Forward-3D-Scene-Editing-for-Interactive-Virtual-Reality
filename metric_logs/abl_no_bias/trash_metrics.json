@@ -1,0 +1,16 @@
+{
+  "exp_name": "abl_no_bias",
+  "scene": "trash",
+  "global": {
+    "FID": 28.290405,
+    "LPIPS": 0.456389,
+    "PSNR": 18.082496,
+    "SSIM": 0.357006
+  },
+  "masked": {
+    "FID": 229.528458,
+    "LPIPS": 0.49494,
+    "PSNR": 17.0746,
+    "SSIM": 0.246455
+  }
+}

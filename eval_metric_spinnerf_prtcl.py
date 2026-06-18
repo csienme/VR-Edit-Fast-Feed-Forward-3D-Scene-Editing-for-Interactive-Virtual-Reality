@@ -139,29 +139,6 @@ def evaluate_metrics(args):
     save_dir = os.path.join(args.output_dir, args.exp_name)
     os.makedirs(save_dir, exist_ok=True)
 
-    # ── [UNCHANGED] Save .txt for human reading ─────────────────────────────────
-    txt_log_path = os.path.join(save_dir, f"{args.scene}_metrics.txt")
-    log_content = (
-        "===========================================\n"
-        f"Exp  : {args.exp_name}\n"
-        f"Scene: {args.scene}\n"
-        "===========================================\n"
-        "[ Global Metrics ]\n"
-        f"   FID   : {fid_score_global:.4f}\n"
-        f"   LPIPS : {np.mean(lpips_global_list):.4f}\n"
-        f"   PSNR  : {np.mean(psnr_global_list):.4f}\n"
-        f"   SSIM  : {np.mean(ssim_global_list):.4f}\n\n"
-        "[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]\n"
-        f"   m-FID   : {fid_score_masked:.4f}\n"
-        f"   m-LPIPS : {np.mean(lpips_masked_list):.4f}\n"
-        f"   m-PSNR  : {np.mean(psnr_masked_list):.4f}\n"
-        f"   m-SSIM  : {np.mean(ssim_masked_list):.4f}\n"
-        "===========================================\n"
-    )
-    print("\n" + log_content)
-    with open(txt_log_path, "w") as f:
-        f.write(log_content)
-
     # ── [NEW] Save .json for machine reading (grid_search.py reads this) ────────
     result_dict = {
         "exp_name": args.exp_name,
@@ -183,7 +160,6 @@ def evaluate_metrics(args):
     with open(json_path, "w") as f:
         json.dump(result_dict, f, indent=2)
 
-    print(f"Saved txt  → {txt_log_path}")
     print(f"Saved json → {json_path}")
 
 

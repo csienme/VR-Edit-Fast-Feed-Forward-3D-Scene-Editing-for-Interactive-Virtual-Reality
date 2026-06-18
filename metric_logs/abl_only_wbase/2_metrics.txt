@@ -1,0 +1,16 @@
+===========================================
+Exp  : abl_only_wbase
+Scene: 2
+===========================================
+[ Global Metrics ]
+   FID   : 123.8200
+   LPIPS : 0.4652
+   PSNR  : 17.0775
+   SSIM  : 0.0993
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 242.5587
+   m-LPIPS : 0.4796
+   m-PSNR  : 14.7400
+   m-SSIM  : 0.1303
+===========================================

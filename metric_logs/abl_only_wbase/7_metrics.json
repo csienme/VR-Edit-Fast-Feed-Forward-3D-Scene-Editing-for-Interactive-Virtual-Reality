@@ -1,0 +1,16 @@
+{
+  "exp_name": "abl_only_wbase",
+  "scene": "7",
+  "global": {
+    "FID": 51.111393,
+    "LPIPS": 0.460673,
+    "PSNR": 17.275687,
+    "SSIM": 0.170153
+  },
+  "masked": {
+    "FID": 66.190804,
+    "LPIPS": 0.417208,
+    "PSNR": 16.772013,
+    "SSIM": 0.107677
+  }
+}

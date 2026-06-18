@@ -1,0 +1,16 @@
+{
+  "exp_name": "abl_only_wdyn",
+  "scene": "book",
+  "global": {
+    "FID": 53.913494,
+    "LPIPS": 0.452969,
+    "PSNR": 17.71993,
+    "SSIM": 0.400069
+  },
+  "masked": {
+    "FID": 104.248016,
+    "LPIPS": 0.425308,
+    "PSNR": 18.093044,
+    "SSIM": 0.285857
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "exp_name": "abl_only_wdyn",
+  "scene": "10",
+  "global": {
+    "FID": 37.658428,
+    "LPIPS": 0.48018,
+    "PSNR": 13.494769,
+    "SSIM": 0.2006
+  },
+  "masked": {
+    "FID": 74.958313,
+    "LPIPS": 0.469406,
+    "PSNR": 13.556479,
+    "SSIM": 0.321826
+  }
+}

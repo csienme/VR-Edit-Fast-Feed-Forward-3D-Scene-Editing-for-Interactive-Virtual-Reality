@@ -1,0 +1,16 @@
+{
+  "exp_name": "abl_only_wbase",
+  "scene": "book",
+  "global": {
+    "FID": 48.792725,
+    "LPIPS": 0.452503,
+    "PSNR": 17.798249,
+    "SSIM": 0.400476
+  },
+  "masked": {
+    "FID": 105.841446,
+    "LPIPS": 0.425756,
+    "PSNR": 17.964854,
+    "SSIM": 0.282217
+  }
+}

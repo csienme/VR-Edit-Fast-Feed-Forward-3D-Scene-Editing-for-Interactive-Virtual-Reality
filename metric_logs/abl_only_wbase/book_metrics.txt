@@ -1,0 +1,16 @@
+===========================================
+Exp  : abl_only_wbase
+Scene: book
+===========================================
+[ Global Metrics ]
+   FID   : 48.7927
+   LPIPS : 0.4525
+   PSNR  : 17.7982
+   SSIM  : 0.4005
+
+[ Masked BBox Metrics (SPIn-NeRF protocol, 10% expansion) ]
+   m-FID   : 105.8414
+   m-LPIPS : 0.4258
+   m-PSNR  : 17.9649
+   m-SSIM  : 0.2822
+===========================================
