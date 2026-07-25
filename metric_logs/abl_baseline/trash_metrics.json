@@ -1,0 +1,16 @@
+{
+  "exp_name": "abl_baseline",
+  "scene": "trash",
+  "global": {
+    "FID": 50.864109,
+    "LPIPS": 0.463196,
+    "PSNR": 18.193903,
+    "SSIM": 0.357596
+  },
+  "masked": {
+    "FID": 367.529266,
+    "LPIPS": 0.62325,
+    "PSNR": 17.673308,
+    "SSIM": 0.25827
+  }
+}

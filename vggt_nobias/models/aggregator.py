@@ -242,11 +242,11 @@ class Aggregator(nn.Module):
                 full_frame_mask = torch.cat([special_mask, patch_mask], dim=1)
                 
                 # 🟢 引擎 A：單視角 Frame Bias (阻止局部特徵生成垃圾桶)
-                frame_attn_bias = full_frame_mask.view(B * S, 1, 1, -1) * (-10000.0)
+                frame_attn_bias = full_frame_mask.view(B * S, 1, 1, -1) * (0.0)
                 print(f"[ABLATION-CHECK] frame_attn_bias abs max = {frame_attn_bias.abs().max().item()} (should be 0.0)")
                 # 🟢 引擎 B：跨視角 Global Bias (逼迫向其他視角問路)
                 global_mask = full_frame_mask.view(B, -1)
-                global_attn_bias = global_mask.view(B, 1, 1, -1) * (-10000.0)
+                global_attn_bias = global_mask.view(B, 1, 1, -1) * (0.0)
 
             images = images.view(B * S, C_in, H, W)
             patch_tokens = self.patch_embed(images)

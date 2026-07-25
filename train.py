@@ -205,7 +205,9 @@ def weighted_l1_dynamic(img, gt, dead_mask=None, dead_w=0.3, step=0, dw_warmup=2
             w_dyn = torch.exp(-dw_alpha * pixel_err)
             # ★ dead 區「內」按 dw_dead_scale 衰減壓制：scale=0 → 1.0(不壓), scale=1 → w_dyn(舊)
             w_dyn_dead = 1.0 - dw_dead_scale * (1.0 - w_dyn)
-            w_dyn = w_dyn * (1.0 - in_dead) + w_dyn_dead * in_dead
+            # w_dyn = w_dyn * (1.0 - in_dead) + w_dyn_dead * in_dead
+            w_dyn = torch.ones_like(w_dyn) * (1.0 - in_dead) + w_dyn * in_dead
+            
     else:
         w_dyn = torch.ones_like(w_base)
 

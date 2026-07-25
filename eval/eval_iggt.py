@@ -773,6 +773,7 @@ def main():
         )
         print(f"⏱️  Inference time: {inference_time_ms:.2f}ms")
 
+
         # ==================================================
         # [新增] 執行 Generative 3D Inpainting (3DGIC Pipeline)
         # ==================================================

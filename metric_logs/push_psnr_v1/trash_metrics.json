@@ -1,0 +1,16 @@
+{
+  "exp_name": "push_psnr_v1",
+  "scene": "trash",
+  "global": {
+    "FID": 36.182701,
+    "LPIPS": 0.469523,
+    "PSNR": 18.171309,
+    "SSIM": 0.365029
+  },
+  "masked": {
+    "FID": 273.686249,
+    "LPIPS": 0.515347,
+    "PSNR": 17.17222,
+    "SSIM": 0.266379
+  }
+}

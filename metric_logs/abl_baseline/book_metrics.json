@@ -1,0 +1,16 @@
+{
+  "exp_name": "abl_baseline",
+  "scene": "book",
+  "global": {
+    "FID": 56.975441,
+    "LPIPS": 0.465764,
+    "PSNR": 18.004894,
+    "SSIM": 0.4059
+  },
+  "masked": {
+    "FID": 267.075165,
+    "LPIPS": 0.666029,
+    "PSNR": 16.774609,
+    "SSIM": 0.272192
+  }
+}

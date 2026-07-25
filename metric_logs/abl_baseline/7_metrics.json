@@ -1,0 +1,16 @@
+{
+  "exp_name": "abl_baseline",
+  "scene": "7",
+  "global": {
+    "FID": 127.737083,
+    "LPIPS": 0.50101,
+    "PSNR": 16.699866,
+    "SSIM": 0.16273
+  },
+  "masked": {
+    "FID": 217.918518,
+    "LPIPS": 0.704166,
+    "PSNR": 14.743138,
+    "SSIM": 0.112179
+  }
+}

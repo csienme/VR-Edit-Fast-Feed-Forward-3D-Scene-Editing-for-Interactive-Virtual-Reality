@@ -469,12 +469,17 @@ def _harvest_target_view(target_idx, views, all_cam_to_world_mat,
 
     if dead_mask.any():
         dead_u8 = dead_mask.astype(np.uint8) * 255
-        close_kernel  = np.ones((11, 11), np.uint8)
+        close_kernel  = np.ones((41, 41), np.uint8)   # ← 11→41：大幅连接破碎的 dead 洞
         dead_u8       = cv2.morphologyEx(dead_u8, cv2.MORPH_CLOSE, close_kernel)
-        dilate_kernel = np.ones((5, 5), np.uint8)
+        dilate_kernel = np.ones((9, 9), np.uint8)      # ← 5→9：dead 区外扩更多
         dead_u8       = cv2.dilate(dead_u8, dilate_kernel, iterations=1)
+        # 关键：把 dead zone 内的洞填实（熊内部不再有非 dead 的黑洞）
+        contours, _ = cv2.findContours(dead_u8, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        cv2.drawContours(dead_u8, contours, -1, 255, thickness=cv2.FILLED)
         n_lbl, lbls, stats, _ = cv2.connectedComponentsWithStats(dead_u8, connectivity=8)
-        min_blob_px = 500
+        min_blob_px = 50                                # ← 500→50：几乎不删 dead 块
+
+        
         clean_u8 = np.zeros_like(dead_u8)
         for lbl in range(1, n_lbl):
             if stats[lbl, cv2.CC_STAT_AREA] >= min_blob_px:

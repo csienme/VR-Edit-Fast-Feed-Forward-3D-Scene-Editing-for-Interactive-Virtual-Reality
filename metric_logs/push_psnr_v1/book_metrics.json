@@ -1,0 +1,16 @@
+{
+  "exp_name": "push_psnr_v1",
+  "scene": "book",
+  "global": {
+    "FID": 52.035446,
+    "LPIPS": 0.461929,
+    "PSNR": 17.733129,
+    "SSIM": 0.406033
+  },
+  "masked": {
+    "FID": 107.86853,
+    "LPIPS": 0.436117,
+    "PSNR": 18.009775,
+    "SSIM": 0.299319
+  }
+}

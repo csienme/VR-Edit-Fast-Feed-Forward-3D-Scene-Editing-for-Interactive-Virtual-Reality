@@ -1,0 +1,27 @@
+train:
+  seed: 33
+  total_iters: 20000
+  dead_weight: 1.0
+  patch_size: 256
+  dw_warmup: 99999
+  dw_alpha: 8.94
+  dw_dead_scale: 1.0
+  lpips_mask_prob: 0.0
+  loss_l1_w: 0.735
+  loss_ssim_w: 0.052
+  loss_lpips_w: 0.212
+  densify_from: 500
+  densify_until: 10000
+  densify_interval: 100
+  max_gaussians: 2500000
+  max_grad: 0.00085
+  min_opacity_prune: 0.05
+  reset_iters:
+  - 3000
+  - 8000
+  floater_prune_iters:
+  - 2500
+  - 5500
+  - 9000
+  floater_opacity_thresh: 0.15
+  floater_scale_pct: 0.99

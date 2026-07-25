@@ -1,0 +1,46 @@
+experiment:
+  name: abl_baseline
+  notes: "Ablation B: w_base OFF (dead_weight=1.0) + w_dyn OFF (dw_warmup>=total_iters). Else=golden_467."
+  scene: all
+  dataset: spinnerf
+
+eval_iggt:
+  seed: 33
+  n_skip: 0
+  inpaint_method: sd
+  src_dilation_px: 11
+  tgt_dilation_px: 5
+  phot_z_thresh: 3.0
+  phot_ring_px: 20
+  local_bg_radius: 20
+  local_bg_extra_dil: 10
+  min_trusted_blob: 300
+  bilateral_d: 5
+  bilateral_sigma: 15.0
+  shadow_search_px: 100
+  shadow_thresh_k: 100.0
+  min_shadow_blob: 100000
+  bright_untrust_k: 100.0
+
+train:
+  seed: 33
+  total_iters: 20000
+  dead_weight: 1.0           # ← ABLATION：w_base 關閉（原 0.3）
+  patch_size: 256
+  dw_warmup: 99999           # ← ABLATION：w_dyn 全程關閉（原 1500）
+  dw_alpha: 8.94
+  dw_dead_scale: 1.0
+  lpips_mask_prob: 0.0
+  loss_l1_w: 0.735
+  loss_ssim_w: 0.052
+  loss_lpips_w: 0.212
+  densify_from: 500
+  densify_until: 10000
+  densify_interval: 100
+  max_gaussians: 2500000
+  max_grad: 0.00085
+  min_opacity_prune: 0.05
+  reset_iters: "3000,8000"
+  floater_prune_iters: "2500,5500,9000"
+  floater_opacity_thresh: 0.15
+  floater_scale_pct: 0.99

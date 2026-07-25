@@ -1,0 +1,47 @@
+experiment:
+  name: bear_360
+  notes: 
+  scene: all
+  dataset: bear
+
+eval_iggt:
+  seed: 33
+  n_skip: 0
+  inpaint_method: sd
+  src_dilation_px: 15
+  tgt_dilation_px: 11
+  phot_z_thresh: 2.0           # 严格，配合 code 把熊内 pull 逼进 dead zone
+  phot_ring_px: 20
+  local_bg_radius: 20
+  local_bg_extra_dil: 10
+  min_trusted_blob: 2000       # 中等偏高（500→2000，但不用到5000，因为 code 会连+填）
+  bilateral_d: 5
+  bilateral_sigma: 15.0
+  shadow_search_px: 100
+  shadow_thresh_k: 100.0
+  min_shadow_blob: 100000
+  bright_untrust_k: 100.0
+
+  
+train:
+  seed: 33
+  total_iters: 40000
+  dead_weight: 0.3
+  patch_size: 256
+  dw_warmup: 1500
+  dw_alpha: 8.94
+  dw_dead_scale: 1.0
+  lpips_mask_prob: 0.0
+  loss_l1_w: 0.735
+  loss_ssim_w: 0.052
+  loss_lpips_w: 0.212
+  densify_from: 500
+  densify_until: 25000          # 背景修复（已验证，不动）
+  densify_interval: 100
+  max_gaussians: 2500000
+  max_grad: 0.0004              # 背景修复（已验证，不动）
+  min_opacity_prune: 0.05
+  reset_iters: "3000,8000,15000,22000"
+  floater_prune_iters: "2500,5500,9000,16000,23000"
+  floater_opacity_thresh: 0.15
+  floater_scale_pct: 0.99

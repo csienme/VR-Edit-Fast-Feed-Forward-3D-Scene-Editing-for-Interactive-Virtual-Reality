@@ -35,7 +35,7 @@ for SCENE in "${SCENES[@]}"; do
     mkdir -p "${BASE_OUT}"
 
     echo "[${SCENE}] Step 1: vanilla VGGT inpainting + COLMAP..."
-    python eval/abl_eval_iggt.py \
+    python eval/abl_bias_eval_iggt.py \
         --config "${CONFIG_FILE}" \
         --data_path "${RGB_DIR}" \
         --mask_path "${MASK_DIR}" \
