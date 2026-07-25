@@ -4,7 +4,7 @@
 #
 # 保留原本用法：
 #   bash run.sh kitchen ../data/Other-360/kitchen/images ../data/Other-360/kitchen/object_masks
-#
+#               場景名稱  rgb imgaes位置                   mask位置
 # Stage 控制：
 #   function="1" bash run.sh ...
 #   function="4" bash run.sh ...
@@ -13,6 +13,11 @@
 # 主要更新：
 #   - 支援 CONFIG 環境變數，傳給 eval_iggt.py / train.py
 #   - train / render 的參數傳遞方式與新版 run_spinnerf.sh 對齊
+# 跑自己的scene:
+# 準備圖片(40張越多越好)sam提取好的mask
+# CONFIG=configs/demo_my_scene.yaml bash run_360.sh my_scene4 my_scene4 my_scene4_masks > my_scene4.log 2>&1 &
+
+# 這個script沒有放後續的 evaluation 階段 主要都是用在沒有GT的 dataset
 # ============================================================
 
 source "$(conda info --base)/etc/profile.d/conda.sh"
